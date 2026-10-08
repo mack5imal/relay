@@ -530,8 +530,19 @@ exit 0
 GH
 chmod +x "$GHBIN/gh"
 export GH_STUB_LOG="$W/gh.log"
-NOGH_PATH="$(printf '%s' "$PATH" | tr ':' '\n' | while IFS= read -r d; do [ -n "$d" ] && [ ! -x "$d/gh" ] && printf '%s:' "$d"; done)"
-NOGH_PATH="${NOGH_PATH%:}"
+# NOGH_PATH — $PATH with gh hidden. A directory holding gh is replaced by a mirror of its other
+# entries, not dropped: on Linux gh sits in /usr/bin beside bash and git.
+NOGH_PATH=""; k=0
+while IFS= read -r d; do
+  [ -n "$d" ] || continue
+  if [ -x "$d/gh" ]; then
+    k=$((k + 1)); m="$W/nogh-$k"; mkdir -p "$m"
+    for e in "$d"/*; do [ "$(basename "$e")" = gh ] || ln -s "$e" "$m/$(basename "$e")" 2>/dev/null; done
+    d="$m"
+  fi
+  NOGH_PATH="${NOGH_PATH:+$NOGH_PATH:}$d"
+done < <(printf '%s\n' "$PATH" | tr ':' '\n')
+(PATH="$NOGH_PATH"; command -v gh >/dev/null 2>&1) && echo "  (warning: gh still on NOGH_PATH)"
 # rgh <args…> — rg with the stub gh first on PATH
 rgh() { OUT="$(cd "$R" && PATH="$GHBIN:$PATH" bash "$RG" "$@" 2>&1)"; RC=$?; }
 
