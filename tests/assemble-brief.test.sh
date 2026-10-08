@@ -566,19 +566,24 @@ cat >> "$RR/phases/phase-2.md" <<'MC'
 
 - `swift test`
 - `swiftlint`
+- `swiftformat --lint .` — summary line: 0 files need formatting
+- swift package resolve — resolves the dependencies
 - ...
 MC
 rm -f "$RR/graph-built"
 run bash "$AB" "$RR" --cleanup
 assert_rc "cleanup brief exits 0" 0
 assert_file "cleanup brief path" "$RR/phases/cleanup.brief.md"
-assert_contains "summary counts deduplicated commands" "commands: 3" "$OUT"
+assert_contains "summary counts deduplicated commands" "commands: 5" "$OUT"
 B="$(cat "$RR/phases/cleanup.brief.md")"
 assert_contains "cleanup title" "# Relay brief — cleanup: tidy-up pass" "$B"
 assert_contains "fix-or-defer rules" "**Fix now only if all five hold**" "$B"
 assert_contains "footprint command" "repo-state.sh changed-files $base" "$B"
 assert_contains "commands union: build" "- \`swift build\`" "$B"
 assert_contains "commands union: lint" "- \`swiftlint\`" "$B"
+assert_contains "a backticked bullet's description is dropped" "- \`swiftformat --lint .\`" "$B"
+assert_contains "… and a bare bullet's" "- \`swift package resolve\`" "$B"
+assert_missing "no description reaches the gate" "summary line: 0 files" "$B"
 assert_eq_n() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1" "expected [$2] got [$3]"; fi; }
 assert_eq_n "swift test listed once" "1" "$(grep -c '^- `swift test`$' "$RR/phases/cleanup.brief.md")"
 assert_missing "continuation bullet dropped" "- ..." "$B"

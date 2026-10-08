@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Pre-flight is no longer red on every new project. A command whose prerequisites only the
+  build creates — no `package.json` yet or no such script in it, no `Cargo.toml` / `go.mod` /
+  `Makefile`, a script file that doesn't exist yet, `check-design.sh --verify` — is listed as
+  *not runnable yet* with the phase that first uses it, instead of failing. The list is fixed in
+  the script, so a broken baseline is still red. On the tunez run, 13 of 16 commands were red
+  before phase 1 and "skip pre-flight" became part of the plan.
+- A `## Mandatory commands` bullet with a description after the command no longer runs the
+  description. `` `npm run build` — summary; exit 0 `` ran as command substitution plus
+  `; exit 0`, a false pass. Pre-flight and the tidy-up / security gate now take only the
+  command, and `validate-phase.sh` rejects such a bullet (the summary line belongs under
+  `## Evidence required`). A phase command that is also an account check runs once.
+
 - `check-design.sh` no longer reports an existing screen heading as missing. With a large
   `## Screens` section, `grep -q` stopped reading at its first match, the section writer died of
   SIGPIPE, and `pipefail` turned the found heading into "no '### <id>' heading" — at random,

@@ -103,15 +103,17 @@ The override is read by the executor at VERIFY time and counts are reported but 
 Every phase must include the engineering commands the agent has to run (each through `run-logged.sh`, which writes the full output to a log and prints only the exit code and a short tail):
 
 ```
-- pnpm build          (must exit 0)
-- pnpm typecheck      (must exit 0)
-- pnpm lint           (must exit 0, or only pre-existing warnings)
-- pnpm test           (must exit 0, or pre-existing failures proven unrelated)
+- pnpm build
+- pnpm typecheck
+- pnpm lint
+- pnpm test
 ```
 
-Adjust per stack. For iOS: `xcodebuild`, `swiftlint`, `swift test`. For Python: `uv run pytest`, `ruff check`, `mypy`.
+Each must exit 0 (lint: or only pre-existing warnings; test: or pre-existing failures proven unrelated). Adjust per stack. For iOS: `xcodebuild`, `swiftlint`, `swift test`. For Python: `uv run pytest`, `ruff check`, `mypy`.
 
-Name the **summary line** each command should yield ("Tests: 47 passed, 0 failed") so the evidence file can report it without anyone opening the full log.
+**A bullet is the command alone** (backticks optional) — pre-flight, the tidy-up and the security pass run each bullet as written, so a trailing description runs too (`` `npm run build` — summary; exit 0 `` ran as command substitution plus `; exit 0`, a false pass). `validate-phase.sh` rejects a bullet with text after the command. Name the **summary line** each command should yield ("Tests: 47 passed, 0 failed") under `## Evidence required` instead, so the evidence file can report it without anyone opening the full log.
+
+Pre-flight (Stage 6.5) runs these before phase 1. A command whose prerequisites come from the build — no `package.json` yet, a script a later phase adds, a script file that does not exist yet, `check-design.sh --verify` — is listed as *not runnable yet* rather than failed, so a greenfield plan can still be green. Don't avoid listing a command for that reason.
 
 ## Evidence required
 

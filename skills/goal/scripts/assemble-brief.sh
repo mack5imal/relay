@@ -353,7 +353,10 @@ fi
 
 # --- {{COMMANDS}} -------------------------------------------------------------------------
 # The deduplicated union of every phase spec's `## Mandatory commands` — the gate a tidy-up
-# must keep green, and what the security pass may run.
+# must keep green, and what the security pass may run. A backtick-wrapped bullet yields only
+# the text inside the backticks, any other bullet loses a trailing " — …" / " – …" description
+# (tunez's "`npm run build` — vite build summary line; exit 0"). Same parse as preflight.sh's
+# cmd_bullets — change both together.
 : > "$tmp/commands"
 cmd_count=0
 if [ "$mode" = "cleanup" ] || [ "$mode" = "security" ] || [ "$mode" = "security-fix" ]; then
@@ -361,10 +364,17 @@ if [ "$mode" = "cleanup" ] || [ "$mode" = "security" ] || [ "$mode" = "security-
     [ -e "$f" ] || continue
     [[ "$(basename "$f")" =~ ^phase-[0-9]+\.md$ ]] || continue
     awk '/^##[[:space:]]/ { inside = (tolower($0) ~ /^##[[:space:]]+mandatory commands/); next }
-         inside && /^[[:space:]]*-[[:space:]]*[^[:space:]]/ { l = $0; sub(/^[[:space:]]*-[[:space:]]*/, "", l); sub(/[[:space:]]+$/, "", l); if (l != "...") print l }' "$f"
+         inside && /^[[:space:]]*-[[:space:]]*[^[:space:]]/ {
+           l = $0; sub(/^[[:space:]]*-[[:space:]]*/, "", l); sub(/[[:space:]]+$/, "", l)
+           if (l == "...") next
+           if (substr(l, 1, 1) == "`") { r = substr(l, 2); i = index(r, "`"); if (i > 1) l = substr(r, 1, i - 1) }
+           else { i = index(l, " — "); if (i == 0) i = index(l, " – "); if (i > 0) l = substr(l, 1, i - 1) }
+           sub(/[[:space:]]+$/, "", l)
+           if (l != "") print l
+         }' "$f"
   done | awk '!seen[$0]++' > "$tmp/commands.raw"
   cmd_count="$(grep -c . "$tmp/commands.raw" || true)"
-  sed 's/^/- /' "$tmp/commands.raw" > "$tmp/commands"
+  sed 's/.*/- `&`/' "$tmp/commands.raw" > "$tmp/commands"
 fi
 [ -s "$tmp/commands" ] || echo "(no mandatory commands found in the phase specs — run the project's build, typecheck, lint and test commands)" > "$tmp/commands"
 

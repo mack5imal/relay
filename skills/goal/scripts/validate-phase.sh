@@ -83,6 +83,24 @@ if [[ "$cmd_bullets" -eq 0 ]]; then
   errors=$((errors + 1))
 fi
 
+# Hard: a command bullet is the command alone (optionally wrapped in backticks). Pre-flight and
+# the tidy-up / security gate run each bullet; tunez's "`npm run build` — vite build summary
+# line; exit 0" ran as command substitution plus `; exit 0` — a false pass — and "npm test —
+# vitest" failed with "—: command not found". The parsers now drop such a description, but a
+# spec that carries one says something it should say under `## Evidence required`.
+while IFS= read -r b; do
+  [[ -n "$b" ]] || continue
+  echo "❌ $f: '## Mandatory commands' bullet carries a description: '$b' — write the command alone (backticks optional); name its expected summary line under '## Evidence required'" >&2
+  errors=$((errors + 1))
+done < <(awk '
+  /^##[[:space:]]/ { inside = (tolower($0) ~ /^##[[:space:]]+mandatory commands/); next }
+  inside && /^[[:space:]]*-[[:space:]]*[^[:space:]]/ {
+    l = $0; sub(/^[[:space:]]*-[[:space:]]*/, "", l); sub(/[[:space:]]+$/, "", l)
+    if (l == "..." || l ~ /\{\{/) next
+    if (substr(l, 1, 1) == "`") { r = substr(l, 2); i = index(r, "`"); if (i > 1 && i < length(r)) print l }
+    else if (index(l, " — ") || index(l, " – ")) print l
+  }' "$f")
+
 for sect in 'Mandatory commands' 'Acceptance criteria'; do
   n="$(section_bullets "$sect" 1)"
   if [[ "$n" -gt 0 ]]; then
