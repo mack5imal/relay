@@ -9,8 +9,11 @@
 node_modules/
 package-lock.json
 
-# Local artifacts produced by supergoal in its own repo (we ship templates, not artifacts)
-.supergoal/
+# Local artifacts produced by relay in its own repo (we ship templates, not artifacts)
+.relay/
 
 # Logs
 *.log
+
+# Personal Claude Code notes (not shared)
+CLAUDE.local.md

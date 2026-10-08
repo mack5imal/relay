@@ -1,15 +1,15 @@
 {
-  "name": "supergoal",
-  "description": "Supergoal marketplace — deep planning + autonomous /goal-driven execution for Claude Code and Codex.",
+  "name": "relay",
+  "description": "Relay marketplace — deep planning + autonomous /goal-driven execution for Claude Code.",
   "owner": {
-    "name": "Robert Courson",
-    "url": "https://github.com/robzilla1738"
+    "name": "Kyle Mack",
+    "url": "https://github.com/mack5imal"
   },
   "plugins": [
     {
-      "name": "supergoal",
+      "name": "relay",
       "source": "./",
-      "description": "Plan and autonomously build a software task end-to-end. One ready-to-paste /goal, adaptive phase count, memory preload + writeback, 3-strike self-healing recovery. Works on Claude Code and Codex."
+      "description": "Interview, spec, phased plan, then one /goal that builds it: each phase in its own subagent, with review, tidy-up and security checks and a final audit against the spec."
     }
   ]
 }

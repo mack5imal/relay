@@ -1,1 +1,6 @@
+# LF everywhere: scripts (a CRLF shebang fails) and the templates, fixtures and MARKERS.md the
+# scripts parse. *.sh keeps its own line — tests/repo-state.test.sh [9] asserts it.
+* text=auto eol=lf
 *.sh text eol=lf
+*.png binary
+*.zip binary

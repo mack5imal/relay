@@ -2,7 +2,7 @@
 # claim-run.test.sh — fixture tests for scripts/claim-run.sh
 #
 # Proves the per-run namespacing primitive that fixes the concurrent-overwrite bug:
-# two `/supergoal` runs in the same working tree must never receive the same artifact
+# two `/relay:goal` runs in the same working tree must never receive the same artifact
 # directory. The headline assertion is the RACE test — N simultaneous claims with an
 # identical slug must yield N distinct directories.
 #
@@ -13,7 +13,7 @@
 set -u
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CR="$REPO_ROOT/skills/supergoal/scripts/claim-run.sh"
+CR="$REPO_ROOT/skills/goal/scripts/claim-run.sh"
 
 if [ ! -f "$CR" ]; then
   echo "FATAL: claim-run.sh not found at $CR" >&2
@@ -40,11 +40,11 @@ echo "claim-run.test.sh — fixtures for $CR"
 echo
 
 # ---------------------------------------------------------------------------
-echo "[1] Basic claim — creates a dir under .supergoal/ and prints exactly its path"
+echo "[1] Basic claim — creates a dir under .relay/ and prints exactly its path"
 w="$(new_workdir)"; cd "$w" || exit 1
 run bash "$CR" "Add dark mode toggle"
 assert_rc "claim succeeds (exit 0)" 0
-assert_contains "path is under .supergoal/" ".supergoal/" "$OUT"
+assert_contains "path is under .relay/" ".relay/" "$OUT"
 assert_contains "slug derived from task" "add-dark-mode-toggle" "$OUT"
 [ -d "$OUT" ] && ok "claimed path is a real directory" || no "claimed path is a real directory" "[$OUT] is not a dir"
 lines="$(printf '%s\n' "$OUT" | grep -c .)"
@@ -98,7 +98,7 @@ echo "[4] Empty / whitespace task -> safe fallback slug, still unique"
 w="$(new_workdir)"; cd "$w" || exit 1
 run bash "$CR" ""
 assert_rc "empty task still claims a dir" 0
-assert_contains "empty task falls back to 'run-' prefix" ".supergoal/run-" "$OUT"
+assert_contains "empty task falls back to 'run-' prefix" ".relay/run-" "$OUT"
 [ -d "$OUT" ] && ok "fallback dir exists" || no "fallback dir exists" "[$OUT]"
 cd "$REPO_ROOT"; rm -rf "$w"
 
@@ -107,7 +107,7 @@ echo "[5] Garbage / symbol-only task -> sanitized, no path separators leak in"
 w="$(new_workdir)"; cd "$w" || exit 1
 run bash "$CR" '../../etc/passwd && rm -rf /  !!!'
 assert_rc "garbage task still claims a dir" 0
-assert_contains "result stays under .supergoal/" ".supergoal/" "$OUT"
+assert_contains "result stays under .relay/" ".relay/" "$OUT"
 # The slug portion (basename) must not contain path separators or spaces.
 b="$(basename "$OUT")"
 assert_missing "no slash escapes into the dir name" "/" "$b"
@@ -116,21 +116,92 @@ case "$b" in *" "*) no "no space in dir name" "[$b]";; *) ok "no space in dir na
 cd "$REPO_ROOT"; rm -rf "$w"
 
 # ---------------------------------------------------------------------------
-echo "[6] Creates .supergoal/ when it does not exist yet"
+echo "[6] Creates .relay/ when it does not exist yet"
 w="$(new_workdir)"; cd "$w" || exit 1
-[ -e .supergoal ] && no "base absent at start" "found .supergoal already" || ok "base absent at start"
+[ -e .relay ] && no "base absent at start" "found .relay already" || ok "base absent at start"
 run bash "$CR" "first run"
 assert_rc "claim succeeds with no pre-existing base" 0
-[ -d .supergoal ] && ok ".supergoal/ created on demand" || no ".supergoal/ created on demand" "still absent"
+[ -d .relay ] && ok ".relay/ created on demand" || no ".relay/ created on demand" "still absent"
 cd "$REPO_ROOT"; rm -rf "$w"
 
 # ---------------------------------------------------------------------------
-echo "[7] Honours \$SUPERGOAL_BASE override"
+echo "[7] Honours \$RELAY_BASE override"
 w="$(new_workdir)"; cd "$w" || exit 1
-OUT="$(SUPERGOAL_BASE="custom-runs" bash "$CR" "task" 2>/dev/null)"; RC=$?
+OUT="$(RELAY_BASE="custom-runs" bash "$CR" "task" 2>/dev/null)"; RC=$?
 assert_rc "override claim succeeds" 0
 assert_contains "claims under the overridden base" "custom-runs/" "$OUT"
 [ -d "$OUT" ] && ok "overridden base dir exists" || no "overridden base dir exists" "[$OUT]"
+cd "$REPO_ROOT"; rm -rf "$w"
+
+# ---------------------------------------------------------------------------
+# [8]-[13]: run artifacts are hidden from untracked-file checks via .git/info/exclude.
+exclude_count() { grep -cxF -- "$1" .git/info/exclude 2>/dev/null || true; }
+
+echo "[8] Inside a git repo -> base added to .git/info/exclude; stdout still just the path"
+w="$(new_workdir)"; cd "$w" || exit 1
+git init -q .
+run bash "$CR" "evidence heavy task"
+assert_rc "claim succeeds in a git repo" 0
+lines="$(printf '%s\n' "$OUT" | grep -c .)"
+assert_contains "still prints a single line" "1" "$lines"
+assert_contains "exclude file lists /.relay/" "1" "$(exclude_count '/.relay/')"
+printf 'console.log("quoted in evidence")\n' > "$OUT/evidence.md"
+assert_missing "run artifacts hidden from untracked detection" ".relay" "$(git ls-files --others --exclude-standard)"
+cd "$REPO_ROOT"; rm -rf "$w"
+
+echo "[9] Second claim in the same repo -> exclude entry not duplicated"
+w="$(new_workdir)"; cd "$w" || exit 1
+git init -q .
+bash "$CR" "one" >/dev/null 2>&1
+bash "$CR" "two" >/dev/null 2>&1
+assert_contains "exactly one /.relay/ entry after two claims" "1" "$(exclude_count '/.relay/')"
+cd "$REPO_ROOT"; rm -rf "$w"
+
+echo "[10] Claim from a subdirectory -> pattern anchored at that subdirectory"
+w="$(new_workdir)"; cd "$w" || exit 1
+git init -q . && mkdir -p sub && cd sub || exit 1
+run bash "$CR" "nested"
+assert_rc "claim from subdirectory succeeds" 0
+cd "$w" || exit 1
+assert_contains "exclude file lists /sub/.relay/" "1" "$(exclude_count '/sub/.relay/')"
+cd "$REPO_ROOT"; rm -rf "$w"
+
+echo "[11] \$RELAY_BASE override in a git repo -> overridden base excluded"
+w="$(new_workdir)"; cd "$w" || exit 1
+git init -q .
+RELAY_BASE="custom-runs" bash "$CR" "task" >/dev/null 2>&1
+assert_contains "exclude file lists /custom-runs/" "1" "$(exclude_count '/custom-runs/')"
+cd "$REPO_ROOT"; rm -rf "$w"
+
+echo "[12] Existing exclude file without a trailing newline -> pattern lands on its own line"
+w="$(new_workdir)"; cd "$w" || exit 1
+git init -q .
+printf 'build-output' > .git/info/exclude
+bash "$CR" "task" >/dev/null 2>&1
+assert_contains "pre-existing line preserved" "1" "$(exclude_count 'build-output')"
+assert_contains "pattern on its own line" "1" "$(exclude_count '/.relay/')"
+cd "$REPO_ROOT"; rm -rf "$w"
+
+echo "[14] Absolute \$RELAY_BASE inside the repo -> excluded by its repo path"
+w="$(new_workdir)"; cd "$w" || exit 1
+git init -q . && mkdir -p sub
+RELAY_BASE="$w/sub/runs" bash "$CR" "task" >/dev/null 2>&1
+assert_contains "exclude file lists /sub/runs/" "1" "$(exclude_count '/sub/runs/')"
+assert_missing "run artifacts hidden from untracked detection" "runs" "$(git ls-files --others --exclude-standard)"
+cd "$REPO_ROOT"; rm -rf "$w"
+
+echo "[15] \$RELAY_BASE outside the repo -> no exclude entry"
+w="$(new_workdir)"; o="$(new_workdir)"; cd "$w" || exit 1
+git init -q .
+RELAY_BASE="$o/runs" bash "$CR" "task" >/dev/null 2>&1
+assert_contains "no pattern written" "0" "$(grep -c 'runs' .git/info/exclude 2>/dev/null || echo 0)"
+cd "$REPO_ROOT"; rm -rf "$w" "$o"
+
+echo "[13] Outside any git repo -> claim works and no .git is created"
+w="$(new_workdir)"; cd "$w" || exit 1
+run bash "$CR" "no git here"
+assert_rc "claim succeeds outside git" 0
+[ -e .git ] && no "no .git created" "found $w/.git" || ok "no .git created"
 cd "$REPO_ROOT"; rm -rf "$w"
 
 # ---------------------------------------------------------------------------

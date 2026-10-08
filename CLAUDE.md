@@ -1,117 +1,217 @@
 # CLAUDE.md
 
-Project-level instructions for Claude Code sessions opened in this repo. Read `AGENTS.md` first for the authoritative project doc; this file adds Claude-Code-specific tips on top.
+Project-level instructions for Claude Code sessions opened in this repo. Read `AGENTS.md` for the
+project doc and `DESIGN.md` for the architecture brief and decisions log; this file adds
+Claude-Code-specific working rules on top.
 
 ## Quick orientation
 
-This repo is the source of truth for the `supergoal` skill — a Claude Code plugin that turns vague build requests into deeply-planned, autonomously-executed `/goal` runs with a final audit pass.
+This repo is the source of truth for **relay** — a Claude Code plugin that turns vague build
+requests into deeply-planned, autonomously-executed `/goal` runs with a final audit pass.
 
-Full project doc: see [AGENTS.md](AGENTS.md).
+relay is a fork of [Supergoal](https://github.com/robzilla1738/supergoal) v0.7.0 (Robert Courson,
+MIT). The fork's reason to exist is **per-phase context isolation**: the `/goal` session becomes an
+orchestrator and each phase executes in a subagent with its own context window, so a large build no
+longer exhausts a single window. `DESIGN.md` has the architecture and the decisions log.
+
+Claude Code only. There is no Codex support and no standalone (non-plugin) skill install.
 
 ## Working in this repo from Claude Code
 
 ### File map you actually edit
 
-- `skills/supergoal/SKILL.md` — the skill content. Edit here for behavioral changes. ~565 lines (grew with v0.7's Stage 0 namespace-claim section; phase-loop section duplicates `PROTOCOL.md` and is a slim-down candidate).
-- `skills/supergoal/references/*.md` — progressive-disclosure docs the agent reads when needed (`planning-depth.md`, `phase-design.md`, `goal-format.md`, `repo-state-comparison.md`).
-- `skills/supergoal/scripts/claim-run.sh` — atomically claims a unique per-run dir (`.supergoal/<slug>-XXXXXX` via `mktemp -d`) so concurrent runs in one working tree can't clobber each other. Edit here to change the namespacing/slug logic; tested by `tests/claim-run.test.sh`.
-- `skills/supergoal/scripts/repo-state.sh` — the complete-working-tree-vs-baseline comparison helper. Edit here to change how the audit/cleanliness checks detect committed/staged/unstaged/deleted/untracked work. Copied into the run's `.supergoal/<run-id>/` dir at Stage 7; tested by `tests/repo-state.test.sh`.
-- `skills/supergoal/templates/PROTOCOL.md` — execution loop + failure recovery + final audit. Edit here when changing the per-`/goal`-session protocol. Paths use the `{{RUN_ROOT}}` placeholder, `sed`-substituted to the concrete run dir at Stage 7.
-- `skills/supergoal/templates/STATE.md` — live-progress template the planner copies to `<run-root>/STATE.md` per run. Contains `Run root:` (this run's namespaced dir) and `Baseline ref:` (the HEAD sha captured at Stage 7 dispatch; the audit + cleanliness checks compare the complete working tree against it via `repo-state.sh`).
-- `skills/supergoal/templates/ROADMAP.md` — phase plan with `Deliverables:` bullets; the audit's deliverable check parses these bullets directly.
-- `tests/claim-run.test.sh` — fixture tests for `claim-run.sh`, incl. the concurrent-claim race (repo-only; run with `bash tests/claim-run.test.sh`).
-- `tests/repo-state.test.sh` — fixture tests for `repo-state.sh` (repo-only; run with `bash tests/repo-state.test.sh`).
+- `skills/goal/SKILL.md` — the skill content (planner stages 0–7, including **Stage 2.5**, the specification interview). ~650 lines. The `/goal`-session loop is **not** here beyond a short pointer — edit `templates/PROTOCOL.md` for execution behavior.
+- `skills/goal/references/*.md` — progressive-disclosure docs the agent reads when needed (`planning-depth.md`, `phase-design.md`, `goal-format.md`, `repo-state-comparison.md`).
+- `skills/goal/scripts/edge-probe.py` — the completeness probe: classifies each `SPEC.md` success criterion by shape and raises only the edge categories that apply to it, from a closed 8-item taxonomy. Its output is a **floor** the planner unions with, never narrows — and `--check` enforces that, failing on any raised (criterion, category) pair with no `## Edge coverage` row (expands `S1–S10` / `S1, S2` shorthand). Relevance filter + mandatory dismissal reasons are what make an unresolved edge meaningful. Tested by `tests/edge-probe.test.sh`; approach credited to get-shit-done — keep the credit in the header.
+- `skills/goal/scripts/validate-spec.sh` — the `SPEC.md` content gate: required sections, an `Acceptance:` line and a measurable predicate per success criterion, no edge dismissed without a reason, every probe-raised edge given a row (via `edge-probe.py --check`; `unresolved` always clears it, so it cannot deadlock). Vague qualifiers and `(planner)`-tagged out-of-scope items are advisory so the hard checks stay free of false positives. Tested by `tests/validate-spec.test.sh`.
+- `skills/goal/scripts/build-rubric.sh` — compiles every phase's acceptance criteria + mandatory commands into `<run-root>/RUBRIC.md` at Stage 6 and flags the few worth a human look (*human eye*: screenshots/manual — likely `trust-prior-verify`; *outside the repo*: deploys/network/accounts). Deterministic, planner-only — not copied at Stage 7. Tested by `tests/build-rubric.test.sh` against `tests/fixtures/build-rubric/`.
+- `skills/goal/scripts/check-research.sh` — Stage 2.6: validates `<run-root>/research/` — the index (`| # | Slug | Question | Why it matters | Status |`, or a reasoned `No research:`), and per answered question `## Question` / `## Answer` / `## Findings` (every bullet an http(s) source or `unverified (training knowledge)`) / `## Implications for this plan` / `## Confidence` + a `Contradicts:` line. `--digest` prints only answers, implications and contradictions — the planner never reads research files whole. Planner-only. Tested by `tests/check-research.test.sh` against `tests/fixtures/check-research/`.
+- `skills/goal/templates/RESEARCH-BRIEF.md` — the Stage 2.6 researcher brief (the researcher runs `check-research.sh --only <slug>` on its own file before returning — `{{CHECK_CMD}}`) (one question per `general-purpose` subagent, dispatched in parallel from the planner — the planner's only subagents); its "What to write" section is the format `check-research.sh` validates — change both together. Rationale: `references/research.md`. Research runs once at plan time, never per phase.
+- `skills/goal/scripts/check-design.sh` — Stage 2.7: verifies the design package at `design/` (required: `HANDOFF.md` with `## Approved screens` + a `### <id>` per screen, one `screens/<id>.png` or `<id>--<state>.png` each, and `design/` committed — `repo-state.sh` would count an untracked export as a run change, and `prepare-design.sh` makes that commit; tokens/components/copy/deviations sections only warn) `--criteria` drafts the structural fidelity criteria plus an `## Edge coverage` row for every edge `edge-probe.py` raises on them, and `--verify <aspect>` checks the built code against the package — the command those criteria name, so it is **copied into the run root at Stage 7**. The screens-captured criterion passes on a capture **or** a recorded reason, so it can never stall a run — keep it that way. Tested by `tests/check-design.test.sh` against `tests/fixtures/check-design/`.
+- `skills/goal/templates/DESIGN-BRIEF.md` — the Stage 2.7 brief for Claude Design, delivered by clipboard (`pbcopy` of `<run-root>/DESIGN-BRIEF.paste.md`; five-backtick paste only as the fallback), and it asks for a `## Deviations from the brief` list that 2.7e confirms in one question (recommended) or any design tool/designer; its "What to hand back" section is the contract `check-design.sh` verifies — change both together. Details and rationale: `references/design-stage.md`.
+- `skills/goal/scripts/check-seeds.sh` — checks every phase's `Map seeds:` resolves to something that will exist **when the phase runs**: a symbol in the plan-time graph, or one an earlier phase's spec names verbatim (whole word, not on that phase's own `Map seeds:` line). Fix 12: the old plan-time rule gave greenfield runs no map at all. Planner-only (Stage 5, Stage 6 tweaks, Stage 7 pre-dispatch) — not copied at Stage 7. Tested by `tests/check-seeds.test.sh` (uses `tests/fixtures/map-graph.json`).
+- `skills/goal/scripts/resume-line.sh` — prints the ready-to-paste `/goal` that resumes a blocked run from the phases that remain. Read-only. Copied into the run dir at Stage 7 and called by `PROTOCOL.md` after a handoff. Tested by `tests/resume-line.test.sh`.
+- `skills/goal/templates/SPEC.md` — the run's agreed statement of intent, written at Stage 2.5 and re-verified by the audit. **Optional everywhere it is read** — pre-0.9 runs and hand-authored test run roots have none, and every reader must degrade to a note rather than fail.
+- `skills/goal/scripts/active-runs.sh` + `stale-memories.sh` — Stage 0's active-run scan and stale-memory check, moved out of inline `SKILL.md` loops (fix 23): the Bash tool runs the user's zsh, where an unmatched glob (`.relay/*/STATE.md` on an empty `.relay/`) is an error. **Keep glob loops out of `SKILL.md` bash blocks** — put them in a bash script. Planner-only. Tested by `tests/active-runs.test.sh` and `tests/stale-memories.test.sh` (both include a `zsh -c` check).
+- `skills/goal/scripts/memory-dir.sh` — Stage 0's memory-dir detection: Claude Code keeps one auto-memory dir per **git repository** (its worktrees and subdirectories share it), `~/.claude/projects/<main checkout, non-alphanumerics → ->/memory`; outside git, the working directory. The old inline `pwd`-derived path was wrong in a worktree. Fallbacks `$HOME/.claude/memory`, `$PWD/.claude/memory`, `<run-root>/memory`. Planner-only. Tested by `tests/memory-dir.test.sh` (real temp repos + a linked worktree, fake `$HOME`, a `zsh -c` check).
+- `skills/goal/scripts/prepare-design.sh` — Stage 2.7d: settles the export the user put in `design/` (a lone `.zip` is unzipped, a single wrapper folder lifted, `.DS_Store`/`__MACOSX` dropped) and commits **`design/` only** (`git commit -- design`, so anything else staged stays staged). The one commit relay makes while planning (fix 30); it never searches outside `design/`. Planner-only. Tested by `tests/prepare-design.test.sh`.
+- `skills/goal/scripts/claim-run.sh` — atomically claims a unique per-run dir (`.relay/<slug>-XXXXXX` via `mktemp -d`) so concurrent runs in one working tree can't clobber each other. Tested by `tests/claim-run.test.sh`.
+- `skills/goal/scripts/preflight.sh` — Stage 6.5 in one call: unions every phase spec's `## Mandatory commands` (plus `--account '<status>' '<login>'` sign-in checks), runs each once through `run-logged.sh` (logs in `<run-root>/logs/preflight/`), then `relay-git.sh preflight` for the tree, appends the outcome to `STATE.md`'s `Notable events`, and **prints the `PREFLIGHT_GREEN` / `PREFLIGHT_RED` block itself** — the planner shows it as printed and never writes its own loop (the inline zsh loop broke on two runs and never printed the block). Exit 0 green / 1 command red / 3 dirty tree; `--bypass` logs the owner's skip. Planner-only — not copied at Stage 7. Tested by `tests/preflight.test.sh` (includes a `zsh -c` check).
+- `skills/goal/scripts/relay-git.sh` — every git write a run makes (0.10 adds `commit … <N> --review-fix` / `--cleanup` / `--security-fix`, trailers `Relay-Review-Fix: N` / `Relay-Cleanup: 1` / `Relay-Security-Fix: 1` — a review fix is deliberately not `Relay-Phase`, so a review's diff range never includes it): `preflight` (Stage 6.5: any uncommitted change, tracked or untracked, blocks; branch plan; signing / unreachable-remote warnings), `branch` (Stage 7: `relay/<run-id>` when starting on the default branch, written to `STATE.md`'s `**Branch:**`), `commit` (each phase / fix / audit-fix subagent after a passing verify; `Relay-Run:` + `Relay-Phase:` / `Relay-Audit-Fix:` trailers, which `record-phase.sh` looks up; refuses newly added secrets, keys and generated files, warns on a changed tracked one; exit 4 when HEAD is off the `**Branch:**` STATE.md records; bounded by `RELAY_COMMIT_TIMEOUT`), `push` (orchestrator, once after `AUDIT_COMPLETE`, relay-created branches only and only with `STATE.md`'s `Push: on` — off prints `push: skipped — push is off for this run; run: <command>`, a missing field pushes (pre-0.11 runs); never `--force`; **always exits 0** — a failed push is reported, never a blocker; `preflight` skips the remote probe when push is off). Every network / commit call runs in its own process group so a timeout stops the whole tree (a credential helper or askpass prompt included). The run root never counts as the owner's work, excluded or not. A repository with no commits gets an empty first commit from `branch` so the baseline is real. Copied into the run dir at Stage 7. Tested by `tests/relay-git.test.sh` (local bare remotes, a hanging fake ssh, a hanging remote helper and hook).
+- `skills/goal/scripts/recover.sh` — what a reopened session runs after an interruption (0.11): reads `<run-root>/phases/in-flight` (written by `assemble-brief.sh` for every dispatch — target, args, description, and the dispatching Claude process: `CLAUDE_PID`, else the nearest `claude` ancestor, plus its `ps -o lstart=` so a reused pid never counts as alive; removed by `record-phase.sh` when it records that target) and settles the dispatch: process alive → exit 4, keep waiting (never a second window on the same files); no pid → exit 5, ask the user; gone + a complete report → print it to echo and record; gone + no report → `record-phase.sh --interrupted` and print the re-dispatch. `PROTOCOL.md` "After an interruption" runs it first in any turn that starts while a hand-back is outstanding, and at loop start when `in-flight` exists. Copied into the run dir at Stage 7. Tested by `tests/recover.test.sh` (incl. the kill between a phase's commit and its recording, and a `zsh -c` call).
+- `skills/goal/scripts/repo-state.sh` — the complete-working-tree-vs-baseline comparison helper used by the audit and cleanliness checks. Copied into the run's `.relay/<run-id>/` dir at Stage 7; tested by `tests/repo-state.test.sh`.
+- `skills/goal/scripts/run-logged.sh` — runs a command with its full output written to a log, printing only exit code + short tail. Copied into the run dir at Stage 7; tested by `tests/run-logged.test.sh`.
+- `skills/goal/scripts/build-graph.sh` — builds/refreshes the run's graphify code graph at `<run-root>/graph/` (`GRAPHIFY_OUT`, `--no-cluster --force`); one summary line, always exits 0. Tested by `tests/build-graph.test.sh` with a stub graphify.
+- `skills/goal/scripts/assemble-brief.sh` — expands `templates/PHASE-BRIEF.md` into a subagent's brief (`phases/phase-N.brief.md`, `.fix.brief.md`, `audit-R.brief.md`, `audit-fix-R.brief.md`, and for the 0.10 checks `phase-N.review.brief.md` / `phase-N.review-fix.brief.md` / `cleanup.brief.md` / `security.brief.md` / `security-fix.brief.md` — `{{DIFF_RANGE}}` is phase N's `Relay-Phase: N` commits from git, `{{COMMANDS}}` the deduplicated `## Mandatory commands` union): spec, carryover memory files from `STATE.md`'s `## Carryover`, precomputed map slice, state excerpt, the mode's block formats from `MARKERS.md`; `{{SPEC_CRITERIA}}` (audit: `SPEC.md`'s success criteria + prohibitions) and `{{SPEC_PLAN}}` (review / cleanup / security: those plus in scope, out of scope, constraints and assumptions — what a fix is checked against, §3b). Mode fences (`<!-- mode: … -->`) and `{{…}}` placeholders are its only template mechanics. Copied into the run dir at Stage 7; tested by `tests/assemble-brief.test.sh`.
+- `skills/goal/scripts/record-phase.sh` — validates a subagent's report file (`phases/phase-N.report.md`, `.fix.report.md`, `audit-R.report.md`, `audit-fix-R.report.md`, and the check reports `phase-N.review.report.md` / `.review-fix.report.md` / `cleanup.report.md` / `security.report.md` / `security-fix.report.md`) and applies every `STATE.md` change for its outcome (row, status, current phase, engineering lines, events, failure log, carryover), idempotently; `--no-report` logs dispatch failures. It is also the **router** for the checks: `Review: yes` → `review N`, then `Cleanup: on` → `cleanup`, `Security pass: yes` → `security`, then `audit` (missing line/field = skip); findings → the fix window; a check's second no-report skips it. On `AUDIT_COMPLETE` it prints the `⚠ Unresolved:` / `Audit coverage:` (percentage computed here, `⚠` banner over 30% trust-prior) / `Findings:` / `Checks: skipped (--lean)` lines `RELAY_RUN_COMPLETE` copies — the orchestrator never does the arithmetic (the lean run printed 100% as "(0%)"). The orchestrator never hand-edits `STATE.md`. Copied into the run dir at Stage 7; tested by `tests/record-phase.test.sh` (includes real contextmeter reports under `tests/fixtures/record-phase/`).
+- `skills/goal/scripts/map-slice.py` + `map-slice.sh` — token-budgeted map slice of named symbols (exact seeds, one hop, sheds AMBIGUOUS → INFERRED → even truncation); the launcher picks `uv run --no-project` / `python3` and falls back to file-name matches. A seed that misses because graphify collapsed its node id onto another symbol's (`_options()` vs `Options`) is named in the suggestions with the survivor to seed instead. Tested by `tests/map-slice.test.sh` against `tests/fixtures/map-graph.json` (graphify 0.9.61 schema). Approach credited to get-shit-done v1.42.3 — keep the credit in the header.
+- `skills/goal/templates/PROTOCOL.md` — the **orchestrator's** manual: async dispatch loop (hand-backs, goal check-ins, orphaned shell tasks), report validation, echo first then record via `record-phase.sh`, no-report handling, audit dispatch, mid-run interruption. Paths use the `{{RUN_ROOT}}` placeholder, `sed`-substituted to the concrete run dir at Stage 7.
+- `skills/goal/templates/PHASE-BRIEF.md` — the **subagent's** manual: who you are, spec, carryover, code map, run state, how to work (context hygiene, evidence file format, `run-logged.sh`, cleanliness, memory writeback — the only copy of these rules), failure protocol, report contract (write `.report.md`, then return the same text). Mode-fenced for phase / fix / audit / audit-fix and the 0.10 checks review / review-fix / cleanup / security / security-fix (the cleanup mode carries the fix-or-defer rules; review and security are read-only); expanded by `assemble-brief.sh`. Change executor behavior here, orchestrator behavior in `PROTOCOL.md`.
+- `skills/goal/templates/STATE.md` — live-progress template copied to `<run-root>/STATE.md` per run. Carries `Run root:`, `Baseline ref:`, `Cleanup:` / `Security pass:` (the run's checks; `--lean` writes `off — --lean` / `skip — --lean`), `Memory dir:`, and the `## Carryover` list of memory files written this run.
+- `<run-root>/FINDINGS.md` — written at run time by the review, tidy-up and security windows (deferred / unresolved findings, one tagged bullet each) and by `record-phase.sh` (`## Skipped steps`). **Optional everywhere**, like `SPEC.md`: no file means no findings.
+- `skills/goal/templates/MARKERS.md` — exact format of every transcript block, under `## Phase blocks` / `## Failure blocks` / `## Review blocks` (the checks, plus the `FINDINGS.md` bullet format) / `## Audit blocks`. Copied to `<run-root>/MARKERS.md` at Stage 7 — `references/` never reaches a run, so this is the only copy the `/goal` session can read. `goal-format.md` links here instead of duplicating.
+- `skills/goal/templates/ROADMAP.md` — phase plan with `Deliverables:` bullets; the audit's deliverable check parses these directly.
+- `tests/*.test.sh` — fixture tests, one suite per script (repo-only, not shipped); every suite is listed in the pre-ship block below. All need `bash` and `git`; `assemble-brief`, `check-design`, `check-run`, `edge-probe`, `map-slice` and `prepare-design` need `python3`; `assemble-brief`, `build-rubric`, `check-design`, `check-research`, `validate-phase` and `validate-spec` need `perl`. Five suites skip their `zsh -c` checks without `zsh`, and `map-slice` its uv checks without `uv` — the count drops, which `run-all.sh` catches.
+- `tests/run-all.sh` + `.github/workflows/ci.yml` — `run-all.sh` runs every suite and fails one whose pass count differs from its `# expects:` line in the pre-ship block (a skipped check or a stale count), so **those lines are what CI enforces**. CI (every push, any branch) runs validation, the template checks and `run-all.sh` on `ubuntu-latest` (bash 5; stands in for WSL) and `macos-latest` under the system bash 3.2, with `zsh` and `uv` installed. Read it with `gh run list -R mack5imal/relay` / `gh run view <id> -R mack5imal/relay --log-failed` — without `-R`, `gh` resolves to `upstream` (no default repo is set) and 404s.
+- `tools/check-run.py` + `tools/run-report.py` — repo-only run tools. `check-run.py <transcript> <run-root>` checks a finished run against the protocol (echo-first, recording mode, forbidden reads, STATE.md ownership, check-in handling, subagent read hygiene, git writes by role, the post-audit push, the order of the 0.10 checks via `check_steps`, and — as an error — any orchestrator `cd`/`pushd`). Its rules are tested by `tests/check-run.test.sh`. `run-report.py <run-root> [transcript]` is the one-stop digest of a finished run (where it struggled, what the audit could not check, the protocol verdict). Run `check-run.py` on a real run after any change to `PROTOCOL.md`, `PHASE-BRIEF.md`, or `record-phase.sh`.
+- `tools/leak-check.sh` — fails when a tracked file carries a private detail (a personal email, a macOS home path, a projects-folder or Desktop path under `~`, a UUID-shaped transcript id) or a commit after the upstream fork point has a non-noreply author or committer. CI runs it on every push; run it before committing. Tested by `tests/leak-check.test.sh`.
 - `.claude-plugin/plugin.json` — bump `version` on every shipped change so the marketplace cache refreshes.
-- `CHANGELOG.md` — add a top entry per release.
-- `README.md` — public-facing only. Edit for docs / Mermaid diagram tweaks. No version bump needed.
+- `CHANGELOG.md` — add a top entry per release. Entries below the "Fork point" heading are upstream history.
+- `DESIGN.md` — architecture brief and decisions log. Update its decisions log when a design decision is made.
+- `README.md` — public-facing only. No version bump needed for README-only changes.
 
 ### Before shipping a change
 
 ```bash
 claude plugin validate .claude-plugin/plugin.json
 claude plugin validate .claude-plugin/marketplace.json
-bash skills/supergoal/scripts/validate-phase.sh skills/supergoal/templates/phase-goal.txt
-bash tests/repo-state.test.sh   # expects: 47 passed, 0 failed
-bash tests/claim-run.test.sh    # expects: 23 passed, 0 failed
+claude plugin validate .
+bash skills/goal/scripts/validate-phase.sh skills/goal/templates/phase-goal.txt
+bash skills/goal/scripts/validate-spec.sh  skills/goal/templates/SPEC.md
+bash tests/run-all.sh              # runs every suite below (no need to run them one by one)
+bash tests/active-runs.test.sh     # expects: 17 passed, 0 failed
+bash tests/stale-memories.test.sh  # expects: 14 passed, 0 failed
+bash tests/memory-dir.test.sh      # expects: 14 passed, 0 failed
+bash tests/prepare-design.test.sh  # expects: 50 passed, 0 failed
+bash tests/repo-state.test.sh      # expects: 54 passed, 0 failed
+bash tests/claim-run.test.sh       # expects: 38 passed, 0 failed
+bash tests/run-logged.test.sh      # expects: 35 passed, 0 failed
+bash tests/map-slice.test.sh       # expects: 64 passed, 0 failed
+bash tests/build-graph.test.sh     # expects: 26 passed, 0 failed
+bash tests/assemble-brief.test.sh  # expects: 266 passed, 0 failed
+bash tests/record-phase.test.sh    # expects: 241 passed, 0 failed
+bash tests/validate-phase.test.sh  # expects: 36 passed, 0 failed
+bash tests/validate-spec.test.sh   # expects: 45 passed, 0 failed
+bash tests/edge-probe.test.sh      # expects: 45 passed, 0 failed
+bash tests/resume-line.test.sh     # expects: 58 passed, 0 failed
+bash tests/build-rubric.test.sh    # expects: 31 passed, 0 failed
+bash tests/check-seeds.test.sh     # expects: 32 passed, 0 failed
+bash tests/check-design.test.sh    # expects: 137 passed, 0 failed
+bash tests/check-research.test.sh  # expects: 65 passed, 0 failed
+bash tests/relay-git.test.sh       # expects: 205 passed, 0 failed
+bash tests/check-run.test.sh       # expects: 104 passed, 0 failed
+bash tests/preflight.test.sh       # expects: 48 passed, 0 failed
+bash tests/recover.test.sh         # expects: 68 passed, 0 failed
+bash tests/leak-check.test.sh      # expects: 29 passed, 0 failed
+bash tools/leak-check.sh           # must print `leak-check: clean`
 ```
 
-The first three should return `✔ Validation passed`; both test runs should end `All fixture scenarios passed.`
+Validation should pass; `run-all.sh` should end `All suites passed with their expected counts.`
+(each suite alone ends `All fixture scenarios passed.`). Update the expected counts here when
+tests are added — `run-all.sh` and CI read them from this block, and a new suite with no line fails.
 
-### Local install testing
-
-After committing + pushing + bumping version:
+### Development loop
 
 ```bash
-claude plugin marketplace update supergoal
-claude plugin update supergoal@supergoal
-# then in a Claude Code session:
-/reload-plugins
-/supergoal <some test task>
+claude --plugin-dir <path-to-your-relay-clone>
 ```
 
-If `claude plugin update` reports "already at latest" but you know you pushed changes, you forgot to bump `version` in `plugin.json`.
-
-### Codex sync
-
-Claude Code auto-updates via the marketplace. Codex doesn't have a marketplace — it's a manual file copy. After any shipped change:
-
-```bash
-rm -rf ~/.codex/skills/supergoal
-cp -R /Users/robert/Code/supergoal/skills/supergoal ~/.codex/skills/supergoal
-```
+A `--plugin-dir` plugin takes precedence over an installed plugin of the same name. The repo root is
+the plugin root (`"skills": "./skills/"`). `/reload-plugins` picks up edits without restarting. Test
+runs create `.relay/` in whatever directory you run them from — use a scratch project, not this repo.
 
 ## Conventions that matter here
 
-### Commit attribution
+### Commits and remotes
 
-**Do not add `Co-Authored-By` trailers to any commit message.** All commits are authored solely by the repo owner (`robzilla1738 <robertcourson1738@gmail.com>`). This rule has been load-bearing during cleanup of prior co-author attribution; preserve it going forward.
+- **Commits made by Claude carry a `Co-Authored-By` trailer.** This replaces upstream's sole-author rule, which does not apply to the fork.
+- Upstream history (Robert Courson's commits) is left untouched — never rewrite it.
+- `origin` is `github.com/mack5imal/relay`. `upstream` is Courson's repo, **fetch-only** — its push URL is set to `DISABLED`. Never re-enable it; cherry-pick from upstream if needed.
 
 ### Naming
 
-Everything in lowercase `supergoal`. The plugin name, marketplace name, skill frontmatter `name:`, slash command (`/supergoal`), artifact dir (`.supergoal/`), and transcript markers (`SUPERGOAL_*`) all match. If you find a stray `superplan` outside the CHANGELOG, it's a bug — the CHANGELOG keeps historical names intentionally.
+| Slot | Value |
+|---|---|
+| Plugin name (command namespace) | `relay` |
+| Skill name (directory + frontmatter `name:`) | `goal` |
+| Invocation | `/relay:goal` |
+| Artifact base dir | `.relay/` |
+| Env vars | `$RELAY_DIR` / `$RELAY_BASE` / `$RELAY_ROOT`; `$RELAY_PUSH` (`on`/`off` — the user's standing push default) |
+| Transcript markers | `RELAY_PHASE_START` / `RELAY_PHASE_VERIFY` / `RELAY_PHASE_DONE`, `RELAY_RUN_COMPLETE` |
+
+The plugin and the skill deliberately have different names. A skill named `goal` is only safe
+**inside** the `relay` plugin namespace — installed standalone it would register as bare `/goal` and
+collide with the built-in `/goal` that Stage 7 hands off to. This is one reason relay is plugin-only.
+
+A stray `supergoal` outside `CHANGELOG.md` (pre-fork entries), `LICENSE`, `DESIGN.md`, and explicit
+provenance/credit lines is a bug.
 
 ### Version bumping
 
-Source of truth is `.claude-plugin/plugin.json`'s `version`. Must match README's "Current: v..." line, the latest `CHANGELOG.md` entry, and the "Working state (as of vX.Y.Z — …)" line in `AGENTS.md`. Tag the same number: `git tag -a v0.6.x -m "..." && git push origin v0.6.x`.
+Source of truth is `.claude-plugin/plugin.json`'s `version`. It must match README's "Current: v…"
+line, the top `CHANGELOG.md` entry, and the "Working state (as of vX.Y.Z — …)" line in `AGENTS.md`.
+relay continues upstream's version line (first relay release is 0.8.0). Tag the same number:
+`git tag -a v0.8.x -m "..." && git push origin v0.8.x`.
+
+### Locating skill assets
+
+The skill finds its own scripts/templates via `${CLAUDE_SKILL_DIR}`, which Claude Code substitutes
+with the directory containing `SKILL.md` when it loads the skill. **Never hard-code install paths**
+(`~/.claude/skills/...`, `~/.claude/plugins/cache/...`). Upstream's hard-coded path list never matched
+a marketplace install and silently fell back to `.`.
 
 ### Slash command mechanics
 
-`/goal` on both Claude Code and Codex is a **user-initiated** command. Agent text containing `/goal "..."` does **not** fire the command. Stage 7's design is an honest one-paste handoff — the planner prints a fenced code block with the `/goal` line, instructs the user to paste it, and stops. Never reframe this as automatic dispatch.
-
-`/goal` itself is built-in on Claude Code (no plugin dependency) per the official docs.
+`/goal` is a **user-initiated** built-in command. Agent text containing `/goal "..."` does **not**
+fire it. Stage 7 is an honest one-paste handoff — the planner prints a fenced code block with the
+`/goal` line, instructs the user to paste it, and stops. Never reframe this as automatic dispatch.
 
 ### Transcript markers
 
-**Inside the `/goal` session** (the autonomous run). The agent must print these named blocks; they're how the host evaluator + the user judge progress:
+**Inside the `/goal` session** (the autonomous run). The host's `/goal` evaluator checks its
+condition against the **parent transcript only** — it does not run tools or read files. Phases,
+fixes, and audit rounds run in subagents whose reports are the blocks below; the orchestrator
+echoes each report verbatim into its own message text (`PROTOCOL.md`). Formats: `templates/MARKERS.md`.
 
-- `SUPERGOAL_PHASE_START` / `SUPERGOAL_PHASE_VERIFY` (v0.6 added a `Cleanliness:` section) / `SUPERGOAL_PHASE_DONE`
+- `RELAY_PHASE_START` / `RELAY_PHASE_VERIFY` (compact: one line per criterion + `Engineering:` / `Cleanliness:` / `Files changed:` lines) / `RELAY_PHASE_DONE` (names the evidence file)
 - `MEMORY_SAVED`
-- `AUDIT_START` / `AUDIT_VERIFY` (v0.6 added a `Deliverables:` block from the diff-based check) / `AUDIT_GAPS` / `AUDIT_COMPLETE` (v0.6 added `Audit coverage:`) / `AUDIT_HANDOFF`
-- `SUPERGOAL_RUN_COMPLETE` (v0.6 prepends a `⚠ Audit coverage: …` honesty banner when trust-prior > 30%)
+- `AUDIT_START` / `AUDIT_VERIFY` (compact: one line per phase + one per failure) / `AUDIT_GAPS` / `AUDIT_COMPLETE` (includes `Audit coverage:`) / `AUDIT_HANDOFF` / `AUDIT_FIX` (the audit-fix subagent's one block)
+- `REVIEW_START` / `REVIEW_CLEAN` / `REVIEW_FINDINGS` / `REVIEW_FIX`, `CLEANUP_START` / `CLEANUP_DONE`, `SECURITY_START` / `SECURITY_CLEAN` / `SECURITY_FINDINGS` / `SECURITY_FIX` (the 0.10 checks — `## Review blocks` in `MARKERS.md`; none of them ever hands off)
+- `RELAY_RUN_COMPLETE` (its `Audit coverage:` line and the `⚠` banner when trust-prior > 30% are copied from `record-phase.sh`, a `⚠ Unresolved: …` line when a correctness/security finding stayed open or a check was skipped, and a `⚠ Plan changed: …` line when a check kept a fix that changed relay's own call in the plan (`[plan]` bullets); carries `Findings:` / `Checks: skipped (--lean)` lines when `record-phase.sh` printed them)
 - `FAILURE_PROBE` / `FAILURE_ESCALATE` / `FAILURE_HANDOFF`
 
-**Inside the planner session** (Supergoal stages, before the `/goal` is dispatched). The user sees these but the `/goal` evaluator doesn't (it isn't active yet):
+**Inside the planner session** (before `/goal` is dispatched): `Self-critique:` (Stage 6a) and
+`PREFLIGHT_GREEN` / `PREFLIGHT_RED` (Stage 6.5).
 
-- `Self-critique:` — inside the Stage 6 plan-review summary (Stage 6a — 1–3 findings or `clean`)
-- `PREFLIGHT_GREEN` / `PREFLIGHT_RED` — Stage 6.5 output after running the deduplicated mandatory commands once
+The `/goal` end-state requires `RELAY_RUN_COMPLETE` preceded by `AUDIT_COMPLETE` and one
+`RELAY_PHASE_DONE` per phase, with no `FAILURE_HANDOFF` or `AUDIT_HANDOFF`.
 
-These are how the `/goal` evaluator decides the run is done. Don't rename the `/goal`-session markers without thinking through the protocol + the end-state condition string.
+**Rename markers only with one global replace.** `validate-phase.sh` anchors on `RELAY_PHASE_START`,
+the literal end-state condition appears in both `references/goal-format.md` and `SKILL.md`
+Stage 7, `assemble-brief.sh` slices `MARKERS.md` on its `## Phase blocks` / `## Failure blocks` /
+`## Review blocks` / `## Audit blocks` headings, `tools/check-run.py`'s `MARKER_RE` lists every name, and `PHASE-BRIEF.md` + `PROTOCOL.md` name every block. A partial
+rename breaks the run silently. The orchestrator must echo each subagent's marker blocks verbatim
+into the parent transcript, or the evaluator never sees them and `/goal` loops forever.
 
-The `/goal` end-state requires `SUPERGOAL_RUN_COMPLETE` preceded by `AUDIT_COMPLETE` and one `SUPERGOAL_PHASE_DONE` per phase, with no `FAILURE_HANDOFF` or `AUDIT_HANDOFF`.
+## Common pitfalls
 
-## Common pitfalls (field-tested)
-
-- **Forgot to bump `version` after a content change** → marketplace cache stays stale. Symptom: `claude plugin update` says "already at latest". Fix: bump and re-push.
-- **Mass find/replace missed `.gitignore`** → it has no extension so most find filters skip it. Always check it separately after global renames.
-- **GitHub Contributors sidebar shows stale data after a history rewrite** → it's a stats-endpoint caching lag, clears on its own (minutes to hours). The actual `/contributors` API is what to trust.
-- **`/plugin marketplace add owner/repo` shorthand defaults to SSH** → fails for users without GitHub SSH keys. README leads with the HTTPS URL form for this reason.
-- **Codex install is a one-way copy** → users have to re-clone on update. Mention in any breaking-change CHANGELOG.
-- **The skill description is the trigger** → tweak it carefully. Lead with `/supergoal` and natural-language phrases users actually type. Keep it pushy.
-- **Updating SKILL.md/PROTOCOL.md? Codex stays in sync only via manual `rm -rf … && cp -R …`.** After any shipped change, re-run the copy and verify with `diff -r skills/supergoal ~/.codex/skills/supergoal` → expect `(no output)`. AGENTS.md's "Working state" section documents the latest verified sync.
-- **v0.6.1 cleanliness + deliverable checks compare the COMPLETE working tree vs `Baseline ref` via `repo-state.sh`** — not a `<Baseline ref>..HEAD` commit range (that missed every uncommitted change, the bug v0.6.1 fixed). Tracked changes come from the single-revision `git diff <Baseline ref>` (committed + staged + unstaged + deleted); untracked files are detected separately. `Baseline ref:` is still captured at Stage 7 from `git rev-parse HEAD 2>/dev/null || echo "no-git"`. If a user runs `/supergoal` in a directory without git history (or any invalid/unresolvable baseline), `repo-state.sh` degrades to a filesystem existence check and `added-lines` yields nothing — cleanliness counts go to 0, so phases in that mode should treat cleanliness as `trust-prior-verify`-shaped. The one documented strategy lives in `references/repo-state-comparison.md`; the logic is implemented once in `repo-state.sh` and tested by `tests/repo-state.test.sh`.
-- **Honesty test for v0.6 Stage 6a self-critique**: if it produces `clean` on essentially every real plan, it's theater and gets dropped. AGENTS.md "Open work" tracks the heuristic — don't defend the feature for its own sake.
-- **v0.7 namespaces every run under `.supergoal/<run-id>/`** (claimed atomically by `scripts/claim-run.sh` via `mktemp -d`). This is what stops two concurrent `/supergoal` runs in one working tree from clobbering each other's `STATE.md`/`ROADMAP.md`/`phases/`. Two consequences: (a) `PROTOCOL.md` + `phase-goal.txt` use a `{{RUN_ROOT}}` placeholder — Stage 7 `sed`-substitutes the concrete dir into the copied `PROTOCOL.md`, and the planner fills it into each phase spec; if you add a new `.supergoal/`-relative path to a template, use `{{RUN_ROOT}}/…`, not `.supergoal/…`. (b) Namespacing protects **planning** artifacts only — two `/goal` **executions** in the same tree still edit the same source files, so the Stage 0 coexistence warning steers parallel execution to separate `git worktree`s. Don't soften that warning into "parallel runs are safe."
+- **Added or removed a test without updating its `# expects:` count** → `tests/run-all.sh` and CI fail that suite ("N passed, expected M"). The same message on CI alone means a check skipped there (a missing `zsh` / `uv`) — install the tool in `ci.yml`, never lower the count to match.
+- **Forgot to bump `version` after a content change** → marketplace cache stays stale; `claude plugin update` says "already at latest". Bump and re-push.
+- **Mass find/replace missed `.gitignore`** → it has no extension, so most find filters skip it. Check it separately after global renames. The same goes for `CLAUDE.md`, `CHANGELOG.md`, `LICENSE`, and `DESIGN.md` — these are deliberately excluded from renames and must be edited by hand.
+- **Prefer `perl -pi` over BSD `sed -i ''` for renames** — macOS sed has no lookbehind, which you need to rename `/supergoal`-style command references without touching `skills/...` paths.
+- **Cleanliness + deliverable checks compare the COMPLETE working tree vs `Baseline ref` via `repo-state.sh`** — not a `<Baseline ref>..HEAD` commit range (that misses every uncommitted change). Without git history, `repo-state.sh` degrades to a filesystem existence check and cleanliness counts go to 0; treat cleanliness as `trust-prior-verify`-shaped in that mode. Strategy documented once in `references/repo-state-comparison.md`.
+- **Run namespacing protects planning artifacts only.** Every run lives under `.relay/<run-id>/` (claimed by `claim-run.sh`), so concurrent planning can't clobber `STATE.md`/`ROADMAP.md`/`phases/`. Two `/goal` **executions** in one tree still edit the same source files — the Stage 0 coexistence warning steers parallel execution to separate `git worktree`s. Don't soften it. New `.relay/`-relative template paths use `{{RUN_ROOT}}/…`. `claim-run.sh` also adds the run base to `$GIT_DIR/info/exclude`, so run artifacts stay out of `repo-state.sh`'s untracked-file checks and graphify's scan — don't remove that.
+- **Keep transcript blocks compact; evidence goes to disk.** Command output enters the context window as the command runs, so the savings come from `run-logged.sh` redirecting it — not from printing less afterward. Per-phase proof lives in `<run-root>/phases/phase-N.evidence.md`. The orchestrator echoes each phase's marker blocks verbatim, so their size is the parent session's per-phase cost — don't grow them. Likewise the orchestrator never reads a brief: `assemble-brief.sh` prints one summary line so the brief's ~7k tokens stay out of the parent window.
+- **`Agent` dispatch is asynchronous (Claude Code 2.1.273).** The tool result only says the subagent launched; the report arrives later as an `<agent-message>` hand-back, and "Goal check-in" notices arrive while it runs. The orchestrator echoes the hand-back **before any tool call**, then records with `record-phase.sh` — recording first is how an early run skipped a phase's echo. A shell task a finished subagent left running defers the `/goal` evaluator indefinitely; `PROTOCOL.md` stops orphans only when no subagent is listed. Never have the orchestrator read `tasks/*.output` (it is a whole subagent transcript).
+- **Subagent window size is set by reads.** Early runs' windows peaked at 109k–256k with only 2–16 of 18–46 Bash calls going through `run-logged.sh`; the rest were whole-file `cat`s. The context-hygiene rules live in `PHASE-BRIEF.md` §6 and Stage 5 cites shared planning docs by section — don't loosen either to save prose.
+- **The `/goal` line opens "Working from this directory (never cd elsewhere)".** The orchestrator's first command runs before it reads `PROTOCOL.md`; on three runs it `cd`'d from the worktree into the main checkout a shared project memory named, and subagents inherit its directory. The text lives in `SKILL.md` Stage 7, `references/goal-format.md` and all four `resume-line.sh` variants — change them with one edit, never the `Done when` clause. For the same reason the last phase's `project_<slug>.md` memory names no absolute checkout path (`PHASE-BRIEF.md` §6).
+- **An interruption is not a failure (owner, 2026-10-07).** A window cut short from outside — the session stopped, or its hand-back is an API error / usage limit / rate limit — is recorded with `record-phase.sh --interrupted` and re-dispatched; it never counts toward the two-no-report block. Only `recover.sh` decides a dispatch is dead (by the dispatching process), so the orchestrator never re-dispatches on a guess — a second window on a live phase's files is worse than waiting. Recovery is scaled down on purpose: Claude Code's own usage-limit wait and API retries cover the common pauses; don't add Stage 0 detection or machine-wide process scans back without a run that shows the need.
+- **A handoff makes the `/goal` condition permanently unsatisfiable.** `FAILURE_HANDOFF` / `AUDIT_HANDOFF` are forbidden by the end-state clause and cannot be retracted, so the evaluator keeps re-prompting a blocked run (2 and 4 extra turns on the blocked test runs). `PROTOCOL.md` tells the orchestrator to restate and stop; never "fix" this by softening the condition or by letting the orchestrator print completion markers.
+- **The subagent commits; the orchestrator only pushes.** A phase / fix / audit-fix window runs `relay-git.sh commit` as the last step of a passing verify — a failing hook is an in-window failure the builder can fix, which an orchestrator could not. `record-phase.sh` takes the sha from git by trailer, never from the report. The orchestrator never runs `git commit`/`add`/`stash`/a branch change; uncommitted work at the end is audit step 5d's gap. Phase specs carry no git bullets (Stage 5).
+- **Pushing is opt-in, default off (owner, 2026-10-07).** `STATE.md`'s `Push:` is `on` only for `--push` or `RELAY_PUSH=on` (the flag wins; `--no-push` overrides the env var). The orchestrator still runs `relay-git.sh push` every time — with push off it prints the command, which `RELAY_RUN_COMPLETE` hands the user. A **missing** `Push:` field means on (pre-0.11 runs and hand-authored test run roots keep the old behaviour), so Stage 7 step 3 rejects a plan without one. Don't make push default on, and don't skip the push step when it is off. `check-run.py` fails a missing push step only when push is on.
+- **A failed push never stops a run (owner).** `relay-git.sh push` exits 0 on every failure — auth, rejection, no remote, a hang killed at `RELAY_PUSH_TIMEOUT` — and `RELAY_RUN_COMPLETE`'s `Push:` line hands the user the command. It pushes only a branch relay created, once, after `AUDIT_COMPLETE`, never `--force`. Don't make a push failure a handoff, and don't widen pushing to the user's own branch. (This replaced an undocumented "never push" default — decisions log, 2026-09-22.)
+- **Stage 6.5 refuses a dirty tree with no bypass.** Relay commits with `git add -A`, so the user's uncommitted work would land in phase 1's commit. Never auto-stash, commit, or discard it for them.
+- **`PROTOCOL.md` is for the orchestrator; `PHASE-BRIEF.md` is for the subagent.** Executor rules (evidence format, cleanliness greps, memory writeback, the in-window failure protocol) have one copy, in the brief template. Don't re-add them to `PROTOCOL.md`, and don't put dispatch logic in the brief — a subagent must never touch `STATE.md` or print `RELAY_RUN_COMPLETE`.
+- **A check never overrides the owner's call; it may change relay's (owner, 2026-10-07).** The review, tidy-up and security windows see the plan (`{{SPEC_PLAN}}`, `PHASE-BRIEF.md` §3b). A fix that goes against a `(planner)` out-of-scope item or an assumption is made and flagged — a `[plan]` bullet in `FINDINGS.md`, `⚠ Plan changed:` in `RELAY_RUN_COMPLETE`; one that goes against anything else in `SPEC.md` is deferred with `contradicts the plan: "<line>"`. Who decided is read from the `(planner)` tag — so Stage 2.5 must keep tagging planner-decided exclusions, and never move a planner guess into `## In scope` or `## Constraints` untagged. The audit is unchanged (`FINDINGS.md` stays input, not a gap).
+- **Review, tidy-up and security never block a run (owner, 2026-09-23).** A finding the fix window cannot fix is undone and written to `FINDINGS.md`; a check whose dispatch returns no report twice is skipped (`record-phase.sh` → `skipped — next: …`). `RELAY_RUN_COMPLETE` points at the file with a ⚠ line. Don't turn a check into a handoff, and don't add the checks to the `/goal` end-state — `record-phase.sh` routes the run into them and `check-run.py`'s `check_steps` fails a run that skipped one, so the Done-when text stays identical with or without `--lean`. A missing `Review:` line or `Cleanup:` / `Security pass:` field means skip (pre-0.10 runs, hand-authored test run roots); the planner can't leave them out — `validate-phase.sh` and Stage 7 step 3 reject that.
+- **`--lean` is a planner decision, not a runtime flag.** It only writes `Review: skip — --lean`, `Cleanup: off — --lean` and `Security pass: skip — --lean`; no script checks the flag, and `record-phase.sh` only reads the `--lean` reason to print the closing `Checks:` line. It is independent of `--quick`.
+- **The interview is thorough by default; `--quick` is the exception.** Stage 2.5's ambiguity score says when the interview is *done*, never whether it *happens* — the opening score is derived from the same prompt it is judging. Don't reintroduce a "skip the interview when the prompt looks clear" path, and don't trim rounds to reduce friction: the trade is minutes of interview against hours and tens of millions of tokens building the wrong thing, with no way to intervene mid-run. Round 5 (acceptance) runs in every mode, `--quick` included — a run with no agreed success criteria gives the audit nothing to check.
+- **`SPEC.md` must stay optional in every reader.** `assemble-brief.sh`, the audit brief, and `resume-line.sh` all degrade to a note when it is absent. Hand-authored test run roots have none, and neither do pre-0.9 runs — a hard requirement would break both.
+- **Honesty test for Stage 6a self-critique**: if it produces `clean` on essentially every real plan, it's theater and gets dropped. Don't defend the feature for its own sake.
+- **The skill description is the trigger** → tweak carefully. Lead with `/relay:goal` and natural-language phrases users actually type.
+- **Verifying the description with `claude -p`? Run with `--setting-sources project,local`.** With a large user skill set (100+ skills) Claude Code's skill listing drops descriptions for some skills and lists them name-only — `relay:goal` came back with no description in that environment and with its full description once user settings were excluded. The explicit `/relay:goal` command works either way; natural-language auto-triggering does not when the description is dropped.
+- **`/plugin marketplace add owner/repo` shorthand defaults to SSH** → fails without GitHub SSH keys. Lead docs with the HTTPS URL form.
 
 ## When in doubt
 
-Read `AGENTS.md`. It's the authoritative project doc. This file is a Claude-Code-flavored skim on top.
+Read `AGENTS.md` for how the project works today and `DESIGN.md` for where it is going.

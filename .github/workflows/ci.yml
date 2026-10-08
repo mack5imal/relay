@@ -1,0 +1,85 @@
+# CI: plugin validation, the template checks and every fixture suite, on Linux and macOS, plus
+# the leak check (tools/leak-check.sh) once on Linux.
+# Linux also stands in for WSL. macOS runs the suites under the system bash 3.2 (what most Mac
+# users have); Linux runs bash 5. zsh and uv are installed so no check skips —
+# tests/run-all.sh fails any suite whose pass count differs from CLAUDE.md's.
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install zsh (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq zsh
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Use the system bash 3.2 (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p "$RUNNER_TEMP/system-bash"
+          ln -sf /bin/bash "$RUNNER_TEMP/system-bash/bash"
+          echo "$RUNNER_TEMP/system-bash" >> "$GITHUB_PATH"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Tool versions
+        run: |
+          echo "bash:    $(command -v bash) — $(bash -c 'echo $BASH_VERSION')"
+          if [ "$RUNNER_OS" = macOS ]; then
+            bash -c '[ "${BASH_VERSINFO[0]}" = 3 ]' || { echo "expected bash 3.2 on macOS"; exit 1; }
+          fi
+          git --version
+          python3 --version
+          perl -e 'print "perl $^V\n"'
+          zsh --version
+          uv --version
+          claude --version
+
+      - name: Validate the plugin
+        run: |
+          claude plugin validate .claude-plugin/plugin.json
+          claude plugin validate .claude-plugin/marketplace.json
+          claude plugin validate .
+
+      - name: Validate the templates
+        run: |
+          bash skills/goal/scripts/validate-phase.sh skills/goal/templates/phase-goal.txt
+          bash skills/goal/scripts/validate-spec.sh  skills/goal/templates/SPEC.md
+
+      - name: Fixture suites
+        run: bash tests/run-all.sh
+
+  leak-check:
+    # The public repository must not carry a private path, id or address, in a file or in a
+    # commit after the upstream fork point (tools/leak-check.sh). Full history for the commit half.
+    name: leak check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Leak check
+        run: bash tools/leak-check.sh

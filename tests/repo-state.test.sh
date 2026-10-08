@@ -14,7 +14,7 @@
 set -u
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RS="$REPO_ROOT/skills/supergoal/scripts/repo-state.sh"
+RS="$REPO_ROOT/skills/goal/scripts/repo-state.sh"
 
 if [ ! -f "$RS" ]; then
   echo "FATAL: repo-state.sh not found at $RS" >&2
@@ -186,7 +186,7 @@ else
   no ".gitattributes present" "$ga not found"
 fi
 # The attribute must actually resolve to eol=lf for a real script...
-run git -C "$REPO_ROOT" check-attr eol -- skills/supergoal/scripts/repo-state.sh
+run git -C "$REPO_ROOT" check-attr eol -- skills/goal/scripts/repo-state.sh
 assert_contains "git resolves repo-state.sh eol attr to lf" "eol: lf" "$OUT"
 # ...and no shell script may carry CR bytes in the working tree.
 crlf_hits=""
@@ -228,6 +228,36 @@ run "$RS" deliverable "$b" src/existing.ts
 assert_rc  "renamed-from path -> present as a change (deletion)" 0
 run "$RS" changed-files "$b"
 assert_contains "changed-files lists the new name" "src/renamed.ts" "$OUT"
+cd "$REPO_ROOT"; cleanup "$d"
+
+# ---------------------------------------------------------------------------
+echo "[12] Commits don't change the answers (relay commits each phase — git facilities)"
+d="$(mk_repo)"; b="$(base_of "$d")"; cd "$d" || exit 1
+printf 'baseline\nmore\n' > keep.txt
+rm "dir with space/old file.ts"
+mkdir -p src/new; printf 'export const fresh = 2\nconsole.log(fresh)\n' > src/new/fresh.ts
+snap() {
+  CF="$("$RS" changed-files "$b" | LC_ALL=C sort)"
+  AL="$("$RS" added-lines "$b" | LC_ALL=C sort)"
+  DL=""
+  for p in keep.txt "dir with space/old file.ts" src/new/fresh.ts src/existing.ts src/never.ts; do
+    "$RS" deliverable "$b" "$p" >/dev/null 2>&1; DL="$DL $?"
+  done
+}
+snap; cf0="$CF"; al0="$AL"; dl0="$DL"
+git add -A >/dev/null 2>&1; git commit -qm "relay: phase 1 — x" >/dev/null 2>&1
+snap
+assert_eq "changed-files identical after a commit" "$cf0" "$CF"
+assert_eq "added-lines identical after a commit"   "$al0" "$AL"
+assert_eq "deliverable verdicts identical after a commit" "$dl0" "$DL"
+printf 'export const later = 3\n' > src/later.ts
+snap; cf1="$CF"; al1="$AL"; dl1="$DL"
+git add -A >/dev/null 2>&1; git commit -qm "relay: phase 2 — y" >/dev/null 2>&1
+snap
+assert_eq "changed-files identical after a second commit" "$cf1" "$CF"
+assert_eq "added-lines identical after a second commit"   "$al1" "$AL"
+assert_eq "deliverable verdicts identical after a second commit" "$dl1" "$DL"
+assert_contains "the second phase's file is counted" "src/later.ts" "$CF"
 cd "$REPO_ROOT"; cleanup "$d"
 
 # ---------------------------------------------------------------------------

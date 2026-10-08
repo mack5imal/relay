@@ -5,6 +5,101 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] (relay)
+
+### Fixed
+
+- `check-design.sh` no longer reports an existing screen heading as missing. With a large
+  `## Screens` section, `grep -q` stopped reading at its first match, the section writer died of
+  SIGPIPE, and `pipefail` turned the found heading into "no '### <id>' heading" — at random,
+  including inside `--verify`, which the design-fidelity criteria run. Found by the tunez run.
+
+## [0.11.0] — 2026-10-07 (relay)
+
+**What relay adds over Supergoal 0.7.0.** Versions 0.8.0–0.11.0 were private pre-releases; this
+entry summarises them. Detailed per-version notes start with 1.0.0.
+
+### Execution: one subagent per phase
+
+- **The `/goal` session is an orchestrator.** Every phase, fix and audit round runs in its own
+  `general-purpose` subagent with a fresh context window, so a large build no longer exhausts one
+  window. `templates/PROTOCOL.md` is the orchestrator's manual; `templates/PHASE-BRIEF.md` is the
+  subagent's contract, mode-fenced by role.
+- **Self-contained briefs.** `scripts/assemble-brief.sh` builds each window's brief from the phase
+  spec, the spec's success criteria, carryover memory from earlier phases, a precomputed code map
+  slice, the run state and the exact marker formats (`templates/MARKERS.md`).
+- **Echo first, then record.** Subagents report asynchronously; the orchestrator echoes each
+  report's marker blocks verbatim into the transcript (the `/goal` evaluator reads only that),
+  then `scripts/record-phase.sh` validates the report and applies every `STATE.md` change.
+- **Hybrid 3-strike recovery.** Retry inside the phase's window, then a fix spec run by a fresh
+  subagent, then a handoff. `scripts/resume-line.sh` prints the `/goal` that resumes a blocked run.
+- **Evidence on disk, compact markers in the transcript.** Proof goes to
+  `phases/phase-N.evidence.md`; commands run through `scripts/run-logged.sh` so their output goes
+  to a log, not into a context window.
+- **Code maps.** With graphify installed, each phase gets a token-budgeted map of the symbols it
+  touches (`scripts/build-graph.sh`, `scripts/map-slice.py`); without it, file-name matches.
+- **Recovery from an unplanned stop.** `scripts/recover.sh` settles the dispatch that was in
+  flight after a crash or restart; interruptions (API errors, usage limits) are never counted as
+  failures.
+
+### Planning: an agreed specification
+
+- **Stage 2.5 — the specification interview**, run after recon: five mandatory rounds, then more
+  until an ambiguity score clears its gate, plus an edge-case probe (`scripts/edge-probe.py`) and a
+  prohibition pass. It writes `SPEC.md`, gated by `scripts/validate-spec.sh`. `--quick` narrows it
+  but never skips agreeing on acceptance.
+- **The final audit verifies the spec**, not only the plan compiled from it, and reports an honest
+  audit-coverage line.
+- **Stage 2.6 — plan-time research.** 1–6 specific questions you approve, one researcher subagent
+  each, sourced answers validated by `scripts/check-research.sh`.
+- **Stage 2.7 — an optional design stage.** A brief for Claude Design or any design tool, then
+  `scripts/check-design.sh` verifies the returned package and drafts fidelity criteria.
+- **Phase sizing, exemplars and map seeds** in every phase spec; Stage 6 shows the phase-level
+  rubric (`scripts/build-rubric.sh`) and the scope the planner decided without asking.
+- **Stage 6.5 pre-flight** in one call (`scripts/preflight.sh`), which also refuses a dirty tree.
+
+### Checks around the build
+
+- **Per-phase correctness review, an end-of-run tidy-up and a security pass**, each in its own
+  subagent. None can stop the run: what cannot be fixed goes to `FINDINGS.md`. A check may change
+  a call relay made in the plan (flagged `⚠ Plan changed:`), never one you made. `--lean` turns
+  all three off.
+
+### Git
+
+- **Every passing phase commits** through `scripts/relay-git.sh` (trailer-tagged, refusing secrets
+  and generated files); a run that starts on the default branch moves to `relay/<run-id>`.
+- **Pushing is opt-in** (`--push` or `RELAY_PUSH=on`): once, after the audit, only a branch relay
+  created, never forced. A failed push never stops a run.
+
+### Changed
+
+- **Renamed to relay.** Plugin `relay`, skill `goal`, invoked as `/relay:goal` (was `/supergoal`);
+  artifacts under `.relay/<run-id>/`, env vars `RELAY_*`, markers `RELAY_*`.
+- **Skill assets are located via `${CLAUDE_SKILL_DIR}`**, so marketplace installs find them; the
+  memory directory is the one Claude Code keeps per git repository (`scripts/memory-dir.sh`).
+
+### Removed
+
+- **Codex support** (relay depends on Claude Code subagents) and the **standalone skill install**
+  (a standalone `goal` skill would collide with the built-in `/goal`).
+
+### Tooling
+
+- Fixture tests for every script (`tests/`, run by `tests/run-all.sh`), CI on macOS (bash 3.2) and
+  Linux (bash 5), and repo-only run tools: `tools/check-run.py` (protocol conformance of a finished
+  run) and `tools/run-report.py`.
+
+## Fork point
+
+**relay** forked from **Supergoal v0.7.0** at commit `ec2f6eb`
+(upstream [`robzilla1738/supergoal`](https://github.com/robzilla1738/supergoal), by Robert
+Courson, MIT). relay continues upstream's version line from 0.8.0.
+
+Every entry below this line is upstream Supergoal release history. It is intentionally left
+unrenamed — "Supergoal", `/supergoal`, `.supergoal/`, and `SUPERGOAL_*` there describe
+Courson's releases as they shipped.
+
 ## [0.7.0] — 2026-06-06
 
 Concurrent-run isolation. Two `/supergoal` runs started in the same working tree both defaulted to a single flat `.supergoal/` directory and overwrote each other's `STATE.md` / `ROADMAP.md` / `phases/` / `applied-memories.md` — a real, observed data-loss bug. Every run now claims its **own** namespaced subdirectory under `.supergoal/`, so the planning artifacts of two runs can never collide.

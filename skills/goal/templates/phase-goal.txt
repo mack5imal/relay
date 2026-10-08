@@ -1,0 +1,79 @@
+# Phase spec template — write to {{RUN_ROOT}}/phases/phase-N.md
+# ({{RUN_ROOT}} is this run's namespaced dir, e.g. .relay/add-dark-mode-Ab3Kx9;
+#  substitute the concrete path along with the other {{...}} placeholders below.)
+#
+# This is a free-form work spec. At run time assemble-brief.sh inlines it
+# into the brief a fresh subagent reads as its only manual, so it must be
+# self-contained: the subagent has no planner context and cannot ask.
+# No char budget. The executor contract (evidence files, failure protocol,
+# memory writeback) lives in {{RUN_ROOT}}/PHASE-BRIEF.md, not here.
+#
+# Replace {{...}} placeholders. Keep the RELAY_PHASE_START block
+# verbatim so validate-phase.sh and the runtime can anchor on it.
+# `Estimated files:` is the phase-sizing gate — a phase must fit one
+# context window; over 12 files touched, split it at a seam, or keep it
+# and say why: `Estimated files: 14 — <why it can't split>` (Stage 4).
+# `Review:` is `yes` (a separate subagent reviews this phase's diff for
+# correctness after it passes) or `skip — <reason>` (docs/config-only
+# phases; `skip — --lean` under --lean). validate-phase.sh rejects a
+# missing line or a skip without a reason (Stage 4).
+
+RELAY_PHASE_START
+Phase: {{N}} of {{TOTAL}} — {{PHASE_NAME}}
+Task: {{ONE_LINE_TASK}}
+Type: {{TAGS}}
+Mandatory commands: {{COMMANDS_CSV}}
+Acceptance criteria: {{CRIT_COUNT}}
+Evidence required: {{EVIDENCE_CSV}}
+Depends on phases: {{DEPS}}
+Map seeds: {{MAP_SEEDS_CSV_OR_NONE}}
+Estimated files: {{FILES_TOUCHED_NEW_PLUS_MODIFIED}}
+Review: {{YES_OR_SKIP_WITH_REASON}}
+
+## Why
+
+{{WHY_ONE_SENTENCE}}
+
+## Work
+
+- {{WORK_BULLET_1}}
+- {{WORK_BULLET_2}}
+- ...
+
+## Exemplars (existing files whose patterns this phase must match — the subagent opens these first)
+
+- {{PATH_1}} — {{WHAT_TO_MATCH, e.g. "control pattern for a view model"}}
+- {{PATH_2}} — {{WHAT_TO_MATCH, e.g. "test shape for scheduler tests"}}
+
+## Acceptance criteria (all must pass — one pass|fail line each in VERIFY; evidence in the evidence file)
+
+- {{CRITERION_1}}
+- {{CRITERION_2}}
+- ...
+
+## Mandatory commands (run each via run-logged.sh — exit code + summary line go in the evidence file)
+
+- {{COMMAND_1}}
+- {{COMMAND_2}}
+- ...
+
+## Evidence required (recorded in {{RUN_ROOT}}/phases/phase-{{N}}.evidence.md)
+
+- {{EVIDENCE_1}}
+- {{EVIDENCE_2}}
+- ...
+
+## Notes
+
+{{ANY_PHASE_SPECIFIC_GUIDANCE}}
+
+---
+
+During execution a subagent reads this spec inside its brief, does the
+work while recording evidence in
+{{RUN_ROOT}}/phases/phase-{{N}}.evidence.md, and returns a report that
+is only the marker blocks — RELAY_PHASE_START (above), then
+RELAY_PHASE_VERIFY, MEMORY_SAVED, RELAY_PHASE_DONE — which the
+orchestrator echoes into the transcript. On failure it follows the
+3-strike protocol in its brief (retry inline, then a fix spec for a
+fresh window) without further instruction needed here.
