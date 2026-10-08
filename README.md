@@ -281,7 +281,7 @@ skills/goal/
 
 - **Claude Code**: `/goal` is a built-in command (no extra plugin). Available in current Claude Code releases. See [code.claude.com/docs/en/goal](https://code.claude.com/docs/en/goal).
 
-Relay runs on Claude Code only, on macOS, Linux and Windows under WSL; every push is tested on macOS and Linux. Native Windows is untested. It needs `bash`, `git`, `python3` 3.8+ and `perl`, which all three come with.
+Relay runs on Claude Code only, on macOS, Linux and Windows under WSL; every push is tested on macOS and Linux. Native Windows is untested. It needs `bash`, `git`, `python3` 3.8+ and `perl`, which all three come with. Run it in a git repository; in a folder that isn't one, relay offers to create it (and, when you turn pushing on with no remote, to create a private GitHub repository through the `gh` CLI).
 
 **Token usage — measured, not estimated.** Runs are token-heavy because every phase starts in a fresh context window. Three measured runs on a small Python CLI used 8.0M tokens processed (2 phases, checks off), 21.7M (3 phases, all checks on) and 23.9M (7 phases), mostly cached re-reads. Retries, audit-fix rounds and a larger codebase all push usage up, so treat these as examples, not a forecast. On a subscription plan a long run can reach your usage limit; Claude Code waits for the reset and continues on its own as long as the session stays open and the limit resets within a day.
 

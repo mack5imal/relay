@@ -17,6 +17,9 @@
 #   relay-git.sh commit    <run-root> --security-fix   security-fix subagent
 #   relay-git.sh commit    <run-root> --audit-fix <R>  audit-fix subagent
 #   relay-git.sh push      <run-root>                  orchestrator, after AUDIT_COMPLETE
+#   relay-git.sh setup     <run-root>                  Stage 1 (planner): read-only report
+#   relay-git.sh init      <run-root> [--save]         Stage 1 (planner), only on the owner's yes
+#   relay-git.sh remote    <run-root> --create|--connect <owner/name>   Stage 1 (planner), ditto
 #
 # preflight — the working tree must be clean: anything `git status --porcelain` shows, tracked
 #   or untracked, is the owner's work and would be swept into phase 1's commit (and counted as
@@ -49,7 +52,23 @@
 #   for this run; run: <command>`; a missing field (runs planned before 0.11) pushes. A failed push must
 #   never stop a run (owner): every failure — auth, rejected, network, no remote, a hang killed
 #   at RELAY_PUSH_TIMEOUT (default 120 s) — prints one `push: failed — …; run: <command>` line
-#   and exits 0, so the orchestrator reports it and the owner pushes later.
+#   and exits 0, so the orchestrator reports it and the owner pushes later. The remote is
+#   origin, the only remote, or the one STATE.md's **Push:** names (`on — to <remote>`).
+# setup — what Stage 1 asks about, read-only, one `key: value` line each: `git: repo|none`;
+#   without git, `files: N` and up to 10 of the folder's entries (untracked directories
+#   collapsed), each secret or generated one marked `(left out)`; `remote: <name>|none|choose:
+#   <a> <b>…`; and, only when there is no usable push remote, `gh: <login>|signed-out|missing`
+#   and `suggest: <login>/<folder>` (+ ` (exists, private|public)`). Network calls are bounded.
+# init — `git init` (branch init.defaultBranch, else main) and the run base into info/exclude
+#   (claim-run.sh ran before the repository existed). --save also commits what is already in the
+#   folder as "Starting point (saved by relay)" — the owner chose this in Stage 1's question —
+#   leaving secrets and generated files out: their patterns go into .gitignore, committed with
+#   it. Without --save nothing is committed (`branch` makes the empty first commit). Exit 1 when
+#   it is already a repository, or git refused the commit (the reason and fix are printed).
+# remote — adds origin for the GitHub repo <owner/name> through `gh`: --create makes it first,
+#   always `--private` (relay never creates a public repo); --connect uses an existing one.
+#   HTTPS or SSH follows `gh config get git_protocol`. **Never pushes** — the run's one push
+#   comes after the audit, with Push: on. Exit 1 when origin exists, gh is missing, or gh fails.
 #
 # Every subcommand without git (not a repository) prints a note and exits 0 — relay then never
 # commits. Exit 2 is a usage error. Copied into the run's <run-root>/ at Stage 7.
@@ -64,6 +83,9 @@ usage: relay-git.sh preflight <run-root>
        relay-git.sh commit    <run-root> --cleanup | --security-fix
        relay-git.sh commit    <run-root> --audit-fix <R>
        relay-git.sh push      <run-root>
+       relay-git.sh setup     <run-root>
+       relay-git.sh init      <run-root> [--save]
+       relay-git.sh remote    <run-root> --create <owner/name> | --connect <owner/name>
 USAGE
   exit 2
 }
@@ -134,8 +156,11 @@ on_default() {
 }
 
 push_remote() {
-  local rs n
+  local rs n want
   rs="$(git remote 2>/dev/null)"
+  # STATE.md's "**Push:** on — to <remote>" (Stage 1's answer when several remotes have no origin)
+  want="$(state_field Push | sed -n -E 's/^on[[:space:]]+—[[:space:]]+to[[:space:]]+([^[:space:]]+).*$/\1/p')"
+  if [ -n "$want" ] && printf '%s\n' "$rs" | grep -qxF -- "$want"; then printf '%s' "$want"; return; fi
   if printf '%s\n' "$rs" | grep -qx origin; then printf 'origin'; return; fi
   n="$(printf '%s' "$rs" | grep -c . || true)"
   [ "$n" -eq 1 ] && printf '%s' "$rs"
@@ -184,6 +209,15 @@ with_timeout() {
   return "$rc"
 }
 
+# secret_or_generated — the paths on stdin that are secrets or generated files (commit refuses
+# them; init --save leaves them out). A trailing "/" (a collapsed untracked directory) counts.
+secret_or_generated() { awk '
+  { p = "/" $0; q = p; sub(/\/$/, "", q); n = split(q, parts, "/"); base = parts[n] }
+  base ~ /^\.env(\..*)?$/ && base !~ /^\.env\.(example|sample|template|dist)$/ { print; next }
+  base == ".envrc" || base ~ /^id_(rsa|dsa|ecdsa|ed25519)$/ || base ~ /\.(pem|key|p12|pfx)$/ { print; next }
+  p ~ /\/(node_modules|\.venv|venv|__pycache__|\.pytest_cache|\.next)\// { print; next }
+  base == ".DS_Store" || base ~ /\.pyc$/ { print }'; }
+
 dirty_lines() {
   local rel; rel="$(run_rel)"
   if [ -n "$rel" ]; then git status --porcelain -- ':/' ":(exclude,top)$rel" 2>/dev/null
@@ -227,8 +261,12 @@ preflight)
         echo "git: ⚠ cannot reach $remote (${why:-exit $lr}) — the run will still finish; the push is reported for you to do by hand. $hint"
       fi
       rm -f "$out"
+    elif [ -z "$(git remote 2>/dev/null)" ]; then
+      echo "git: on ${cur:-detached HEAD} → run branch $run_branch, one commit per phase"
+      echo "git: ⚠ push is on but there's no remote yet — add one before the run ends (git remote add origin <url>), or the branch stays local and the run's last message gives the push command"
     else
-      echo "git: on ${cur:-detached HEAD} → run branch $run_branch, one commit per phase; no remote, so it stays local"
+      echo "git: on ${cur:-detached HEAD} → run branch $run_branch, one commit per phase"
+      echo "git: ⚠ push is on but there are several remotes and none is origin — name one in STATE.md (**Push:** on — to <remote>), or the branch stays local"
     fi
   else
     echo "git: on $cur → one commit per phase lands on $cur; relay will not push it"
@@ -320,14 +358,6 @@ commit)
     if has_head; then git reset -q -- ":(top)$rel" >/dev/null 2>&1
     else git rm -r -q --cached --ignore-unmatch -- ":(top)$rel" >/dev/null 2>&1; fi
   fi
-
-  # secret_or_generated — the staged paths on stdin that are secrets or generated files
-  secret_or_generated() { awk '
-    { p = "/" $0; n = split($0, parts, "/"); base = parts[n] }
-    base ~ /^\.env(\..*)?$/ && base !~ /^\.env\.(example|sample|template|dist)$/ { print; next }
-    base == ".envrc" || base ~ /^id_(rsa|dsa|ecdsa|ed25519)$/ || base ~ /\.(pem|key|p12|pfx)$/ { print; next }
-    p ~ /\/(node_modules|\.venv|venv|__pycache__|\.pytest_cache|\.next)\// { print; next }
-    base == ".DS_Store" || base ~ /\.pyc$/ { print }'; }
 
   # Newly added secrets / generated files: refuse, restore the index, leave the files alone.
   bad="$(git diff --cached --name-only --no-renames --diff-filter=A 2>/dev/null | secret_or_generated)"
@@ -432,6 +462,142 @@ push)
     echo "push: failed — ${why:-git push exited $rc}; $retry"
   fi
   rm -f "$out"
+  exit 0
+  ;;
+
+setup)
+  [ "$#" -eq 0 ] || usage
+  if in_git; then
+    echo "git: repo"
+  else
+    echo "git: none"
+    # The folder's entries as git would see them (untracked directories collapsed), through a
+    # throwaway repository so nothing is written here. The run base is never the owner's.
+    tmpgit="$(mktemp -d)"
+    here_abs="$(pwd -P)"; base_abs="$(cd "$(dirname "$runroot")" && pwd -P)"
+    spec=(-- .); case "$base_abs" in "$here_abs"/?*) spec+=(":(exclude)${base_abs#"$here_abs"/}") ;; esac
+    entries="$(git --git-dir="$tmpgit" --work-tree=. init -q >/dev/null 2>&1 \
+      && git --git-dir="$tmpgit" --work-tree=. status --porcelain "${spec[@]}" 2>/dev/null \
+      | sed -E 's/^\?\? //; s/^"(.*)"$/\1/')"
+    rm -rf "$tmpgit"
+    n="$(printf '%s\n' "$entries" | grep -c . || true)"
+    echo "files: $n"
+    left="$(printf '%s\n' "$entries" | secret_or_generated)"
+    printf '%s\n' "$entries" | grep . | head -10 | while IFS= read -r e; do
+      if printf '%s\n' "$left" | grep -qxF -- "$e"; then echo "  $e   (left out — secret or generated)"; else echo "  $e"; fi
+    done
+    [ "$n" -gt 10 ] && echo "  … and $((n - 10)) more"
+  fi
+  rs="$(git remote 2>/dev/null || true)"
+  r="$(push_remote)"
+  if [ -n "$r" ]; then echo "remote: $r"
+  elif [ -z "$rs" ]; then echo "remote: none"
+  else echo "remote: choose: $(printf '%s\n' "$rs" | tr '\n' ' ' | sed 's/ *$//')"; fi
+  if [ -z "$r" ]; then
+    if ! command -v gh >/dev/null 2>&1; then
+      echo "gh: missing"
+    else
+      out="$(mktemp)"
+      if with_timeout 20 "$out" gh api user --jq .login && login="$(head -1 "$out")" && [ -n "$login" ]; then
+        echo "gh: $login"
+        top="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
+        name="$login/$(basename "$top" | sed -E 's/[^A-Za-z0-9._-]+/-/g')"
+        if with_timeout 20 "$out" gh repo view "$name" --json visibility --jq .visibility; then
+          echo "suggest: $name (exists, $(head -1 "$out" | tr '[:upper:]' '[:lower:]'))"
+        else
+          echo "suggest: $name"
+        fi
+      else
+        echo "gh: signed-out"
+      fi
+      rm -f "$out"
+    fi
+  fi
+  exit 0
+  ;;
+
+init)
+  save=0
+  case "$#:${1:-}" in 0:) ;; 1:--save) save=1 ;; *) usage ;; esac
+  if in_git; then echo "init: already a git repository — nothing to do"; exit 1; fi
+  br="$(git config --get init.defaultBranch 2>/dev/null || true)"
+  git -c init.defaultBranch="${br:-main}" init -q . || { echo "init: git init failed"; exit 1; }
+  # The run base into info/exclude, as claim-run.sh does inside a repository (it ran before
+  # this one existed): run artifacts stay out of status, repo-state.sh and graphify.
+  top="$(cd "$(git rev-parse --show-toplevel)" && pwd -P)"; abs="$(cd "$(dirname "$runroot")" && pwd -P)"
+  case "$abs" in
+    "$top"/?*) ex="$(git rev-parse --git-path info/exclude)"; mkdir -p "$(dirname "$ex")"
+               pat="/${abs#"$top"/}/"; grep -qxF -- "$pat" "$ex" 2>/dev/null || printf '%s\n' "$pat" >> "$ex" ;;
+  esac
+  echo "init: git repository created (branch ${br:-main}, no commits yet)"
+  [ "$save" -eq 1 ] || exit 0
+  rel="$(run_rel)"
+  addspec=(-- .); [ -n "$rel" ] && addspec+=(":(exclude,top)$rel")
+  git add -A "${addspec[@]}" >/dev/null 2>&1
+  bad="$(git diff --cached --name-only --no-renames 2>/dev/null | secret_or_generated)"
+  if [ -n "$bad" ]; then
+    # One .gitignore line per secret file and per generated directory/name, then re-stage.
+    pats="$(printf '%s\n' "$bad" | awk '
+      { p = "/" $0; n = split($0, parts, "/"); base = parts[n] }
+      match(p, /\/(node_modules|\.venv|venv|__pycache__|\.pytest_cache|\.next)\//) { print substr(p, RSTART + 1, RLENGTH - 1); next }
+      base == ".DS_Store" { print ".DS_Store"; next }
+      base ~ /\.pyc$/ { print "*.pyc"; next }
+      { print "/" $0 }' | awk '!seen[$0]++')"
+    git reset -q >/dev/null 2>&1 || git rm -r -q --cached . >/dev/null 2>&1
+    if [ -s .gitignore ] && [ -n "$(tail -c 1 .gitignore)" ]; then printf '\n' >> .gitignore; fi
+    printf '%s\n' "$pats" | while IFS= read -r l; do grep -qxF -- "$l" .gitignore 2>/dev/null || printf '%s\n' "$l" >> .gitignore; done
+    git add -A "${addspec[@]}" >/dev/null 2>&1
+    still="$(git diff --cached --name-only --no-renames 2>/dev/null | secret_or_generated)"
+    if [ -n "$still" ]; then
+      git rm -r -q --cached . >/dev/null 2>&1
+      echo "init: not saved — these would still be committed: $(printf '%s\n' "$still" | head -3 | tr '\n' ' ')"; exit 1
+    fi
+  fi
+  n="$(git diff --cached --name-only 2>/dev/null | grep -c . || true)"
+  if [ "$n" -eq 0 ]; then echo "init: nothing to save — the folder is empty"; exit 0; fi
+  out="$(mktemp)"
+  with_timeout "${RELAY_COMMIT_TIMEOUT:-300}" "$out" git commit -q -m "Starting point (saved by relay)"; rc=$?
+  if [ "$rc" -ne 0 ]; then
+    git rm -r -q --cached . >/dev/null 2>&1
+    why="$(grep -v '^[[:space:]]*$' "$out" | tail -1 | cut -c1-160)"
+    if grep -qiE 'tell me who you are|auto-detection is disabled|user\.(email|name)' "$out"; then
+      why="git has no name/email — run: ! git config --global user.name \"Your Name\" && git config --global user.email you@example.com"
+    fi
+    rm -f "$out"
+    echo "init: repository created, files not saved — ${why:-git commit exited $rc}"; exit 1
+  fi
+  rm -f "$out"
+  echo "init: saved $n file(s) as the starting point ($(git rev-parse --short HEAD))"
+  [ -n "$bad" ] && echo "init: left out, now in .gitignore: $(printf '%s\n' "$pats" | tr '\n' ' ' | sed 's/ *$//')"
+  exit 0
+  ;;
+
+remote)
+  [ "$#" -eq 2 ] && [ -n "$2" ] || usage
+  case "$1" in --create|--connect) ;; *) usage ;; esac
+  mode="$1"; name="$2"
+  [[ "$name" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { echo "remote: '$name' is not <owner>/<name>"; exit 2; }
+  if ! in_git; then echo "remote: not a git repository"; exit 1; fi
+  if git remote get-url origin >/dev/null 2>&1; then echo "remote: origin is already set ($(git remote get-url origin)) — nothing changed"; exit 1; fi
+  command -v gh >/dev/null 2>&1 || { echo "remote: gh is not installed — install it (https://cli.github.com) and run: ! gh auth login"; exit 1; }
+  out="$(mktemp)"
+  if [ "$mode" = "--create" ]; then
+    # Always private: relay never creates a public repository. No --push, no --source.
+    if ! with_timeout 60 "$out" gh repo create "$name" --private; then
+      echo "remote: gh repo create failed — $(grep -v '^[[:space:]]*$' "$out" | tail -1 | cut -c1-160)"; rm -f "$out"; exit 1
+    fi
+    vis="private, created"
+  else
+    if ! with_timeout 20 "$out" gh repo view "$name" --json visibility --jq .visibility; then
+      echo "remote: cannot see $name on GitHub — $(grep -v '^[[:space:]]*$' "$out" | tail -1 | cut -c1-160)"; rm -f "$out"; exit 1
+    fi
+    vis="$(head -1 "$out" | tr '[:upper:]' '[:lower:]'), existing"
+  fi
+  proto=""; with_timeout 10 "$out" gh config get git_protocol -h github.com && proto="$(head -1 "$out")"
+  rm -f "$out"
+  if [ "$proto" = "ssh" ]; then url="git@github.com:$name.git"; else url="https://github.com/$name.git"; fi
+  git remote add origin "$url" || { echo "remote: git remote add failed"; exit 1; }
+  echo "remote: origin → $url ($vis) — nothing pushed; the run branch goes there after the audit when push is on"
   exit 0
   ;;
 

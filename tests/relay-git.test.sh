@@ -513,6 +513,158 @@ rg push "$RUN"
 assert_contains "no Branch field → skipped (hand-authored run roots)" "no Branch field" "$OUT"
 
 # ---------------------------------------------------------------------------
+echo "setup / init / remote (Stage 1: a folder that is not a repository, push with no remote)"
+GHBIN="$W/ghbin"; mkdir -p "$GHBIN"
+cat > "$GHBIN/gh" <<'GH'
+#!/bin/sh
+echo "gh $*" >> "$GH_STUB_LOG"
+case "$1 $2" in
+  "api user")   [ -n "${GH_STUB_LOGIN:-}" ] && { echo "$GH_STUB_LOGIN"; exit 0; }; echo "not logged in" >&2; exit 1 ;;
+  "repo view")  for e in ${GH_STUB_EXISTS:-}; do [ "${e%%:*}" = "$3" ] && { echo "${e#*:}"; exit 0; }; done
+                echo "GraphQL: Could not resolve to a Repository with the name '$3'." >&2; exit 1 ;;
+  "repo create") [ "${GH_STUB_CREATE_RC:-0}" -eq 0 ] || { echo "HTTP 422: name already exists on this account" >&2; exit 1; }
+                echo "https://github.com/$3"; exit 0 ;;
+  "config get") echo "${GH_STUB_PROTO:-https}"; exit 0 ;;
+esac
+exit 0
+GH
+chmod +x "$GHBIN/gh"
+export GH_STUB_LOG="$W/gh.log"
+NOGH_PATH="$(printf '%s' "$PATH" | tr ':' '\n' | while IFS= read -r d; do [ -n "$d" ] && [ ! -x "$d/gh" ] && printf '%s:' "$d"; done)"
+NOGH_PATH="${NOGH_PATH%:}"
+# rgh <args…> — rg with the stub gh first on PATH
+rgh() { OUT="$(cd "$R" && PATH="$GHBIN:$PATH" bash "$RG" "$@" 2>&1)"; RC=$?; }
+
+# plain <name> — a folder that is not a repository, with a claimed run root and some files
+plain() {
+  R="$W/$1"; mkdir -p "$R/$RUN/phases" "$R/src" "$R/node_modules/pkg"
+  printf '**Push:** on\n' > "$R/$RUN/STATE.md"
+  printf 'notes\n' > "$R/notes.md"; printf 'SECRET=1\n' > "$R/.env"
+  printf 'x\n' > "$R/src/a.ts"; printf 'm\n' > "$R/node_modules/pkg/index.js"
+}
+
+plain st
+: > "$GH_STUB_LOG"
+GH_STUB_LOGIN=alice rgh setup "$RUN"
+assert_rc "setup exits 0" 0
+assert_contains "no repository" "git: none" "$OUT"
+assert_contains "counts the folder's entries (run base left out)" "files: 4" "$OUT"
+assert_contains "a secret is marked" "  .env   (left out — secret or generated)" "$OUT"
+assert_contains "a generated directory is marked (collapsed)" "  node_modules/   (left out — secret or generated)" "$OUT"
+assert_contains "an ordinary file is not" "
+  notes.md
+" "$OUT
+"
+assert_missing "the run root is never listed" ".relay" "$OUT"
+assert_contains "no remote" "remote: none" "$OUT"
+assert_contains "the gh login" "gh: alice" "$OUT"
+assert_contains "suggests <login>/<folder>" "suggest: alice/st" "$OUT"
+[ -e "$R/.git" ] && no "setup writes nothing" ".git created" || ok "setup writes nothing"
+GH_STUB_LOGIN=alice GH_STUB_EXISTS="alice/st:PRIVATE" rgh setup "$RUN"
+assert_contains "an existing repo is named with its visibility" "suggest: alice/st (exists, private)" "$OUT"
+rgh setup "$RUN"
+assert_contains "gh signed out" "gh: signed-out" "$OUT"
+assert_missing "… so no suggestion" "suggest:" "$OUT"
+OUT="$(cd "$R" && PATH="$NOGH_PATH" bash "$RG" setup "$RUN" 2>&1)"
+assert_contains "gh missing" "gh: missing" "$OUT"
+
+: > "$GH_STUB_LOG"
+rgh init "$RUN" --save
+assert_rc "init --save exits 0" 0
+assert_contains "creates the repository" "init: git repository created (branch main" "$OUT"
+assert_contains "saves the files" "init: saved 3 file(s) as the starting point" "$OUT"
+assert_contains "names what it left out" "init: left out, now in .gitignore: /.env node_modules/" "$OUT"
+assert_eq "the saved files" ".gitignore
+notes.md
+src/a.ts" "$(g ls-files)"
+assert_eq "the commit subject" "Starting point (saved by relay)" "$(g log -1 --format=%s)"
+assert_missing "no relay trailer — these are the owner's files" "Relay-" "$(g log -1 --format=%B)"
+assert_contains "the run base is excluded" "/.relay/" "$(cat "$R/.git/info/exclude")"
+[ -f "$R/.env" ] && [ -f "$R/node_modules/pkg/index.js" ] && ok "left-out files stay on disk" || no "left-out files stay on disk" "a file was removed"
+rgh preflight "$RUN"
+assert_rc "pre-flight is green straight after" 0
+assert_contains "… on a clean tree" "git: working tree clean" "$OUT"
+assert_contains "push on, no remote → warned, never blocked" "git: ⚠ push is on but there's no remote yet" "$OUT"
+rgh init "$RUN" --save
+assert_rc "init in a repository → 1" 1
+assert_contains "says so" "already a git repository" "$OUT"
+assert_eq "init never calls gh" "" "$(cat "$GH_STUB_LOG")"
+
+R="$W/st-empty"; mkdir -p "$R/$RUN"
+rgh init "$RUN"
+assert_rc "init without --save exits 0" 0
+git -C "$R" rev-parse -q --verify HEAD >/dev/null && no "… and commits nothing" "HEAD exists" || ok "… and commits nothing"
+R="$W/st-empty2"; mkdir -p "$R/$RUN"
+rgh init "$RUN" --save
+assert_contains "--save in an empty folder" "nothing to save" "$OUT"
+R="$W/st-noid"; mkdir -p "$R/$RUN"; printf 'a\n' > "$R/a.txt"
+printf '[user]\n\tuseConfigOnly = true\n' > "$W/noid.gitconfig"
+OUT="$(cd "$R" && GIT_CONFIG_GLOBAL="$W/noid.gitconfig" GIT_CONFIG_NOSYSTEM=1 bash "$RG" init "$RUN" --save 2>&1)"; RC=$?
+assert_rc "no git identity → 1" 1
+assert_contains "says how to set it" "git has no name/email — run: ! git config --global user.name" "$OUT"
+assert_eq "… with nothing left staged" "" "$(git -C "$R" diff --cached --name-only 2>/dev/null)"
+
+R="$W/st"
+: > "$GH_STUB_LOG"
+rgh remote "$RUN" --create alice/st
+assert_rc "remote --create exits 0" 0
+assert_contains "always private" "gh repo create alice/st --private" "$(cat "$GH_STUB_LOG")"
+assert_eq "origin is the HTTPS URL" "https://github.com/alice/st.git" "$(g remote get-url origin)"
+assert_contains "says nothing was pushed" "nothing pushed" "$OUT"
+assert_missing "never pushes" "push" "$(cat "$GH_STUB_LOG")"
+assert_eq "no upstream set" "" "$(g rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)"
+rgh remote "$RUN" --create alice/st
+assert_rc "origin already set → 1" 1
+assert_contains "says so" "origin is already set" "$OUT"
+rgh setup "$RUN"
+assert_contains "setup now sees the remote" "remote: origin" "$OUT"
+assert_missing "… and asks gh nothing" "gh:" "$OUT"
+
+repo rc2
+GH_STUB_EXISTS="alice/pub:PUBLIC" GH_STUB_PROTO=ssh rgh remote "$RUN" --connect alice/pub
+assert_rc "remote --connect exits 0" 0
+assert_eq "SSH when gh says so" "git@github.com:alice/pub.git" "$(g remote get-url origin)"
+assert_contains "names the visibility" "(public, existing)" "$OUT"
+repo rc3
+rgh remote "$RUN" --connect alice/none
+assert_rc "connect to a repo gh cannot see → 1" 1
+assert_contains "says why" "cannot see alice/none" "$OUT"
+GH_STUB_CREATE_RC=1 rgh remote "$RUN" --create alice/taken
+assert_rc "gh repo create fails → 1" 1
+assert_contains "passes gh's reason on" "name already exists" "$OUT"
+assert_eq "… and adds no origin" "" "$(g remote)"
+rgh remote "$RUN" --create not-a-name
+assert_rc "a bad name → 2" 2
+OUT="$(cd "$R" && PATH="$NOGH_PATH" bash "$RG" remote "$RUN" --create alice/x 2>&1)"; RC=$?
+assert_rc "gh missing → 1" 1
+assert_contains "says how to get it" "gh is not installed" "$OUT"
+
+repo two
+bare two-a a; bare two-b b
+rgh setup "$RUN"
+assert_contains "several remotes, none origin → a choice" "remote: choose: a b" "$OUT"
+rg preflight "$RUN"
+assert_contains "pre-flight warns that relay cannot tell which" "several remotes and none is origin" "$OUT"
+set_push_field "on — to b"
+rgh setup "$RUN"
+assert_contains "Push: on — to <remote> picks it" "remote: b" "$OUT"
+rg branch "$RUN"; set_branch_field "$OUT"
+printf 'c\n' > "$R/c.txt"; rg commit "$RUN" 1
+rg push "$RUN"
+assert_contains "… and the push goes there" "→ b (1 commits)" "$OUT"
+assert_eq "remote a is untouched" "" "$(git --git-dir="$W/two-a.git" branch --list "$BR")"
+set_push_field "on — to gone"
+rgh setup "$RUN"
+assert_contains "a named remote that does not exist is ignored" "remote: choose: a b" "$OUT"
+
+if command -v zsh >/dev/null 2>&1; then
+  plain st-zsh
+  OUT="$(cd "$R" && PATH="$GHBIN:$PATH" zsh -c "bash '$RG' setup '$RUN'" 2>&1)"; RC=$?
+  assert_rc "setup runs from zsh" 0
+  assert_contains "… and lists the folder" "files: 4" "$OUT"
+fi
+
+# ---------------------------------------------------------------------------
 echo "usage + shells"
 R="$W/cm"
 rg bogus "$RUN"; assert_rc "unknown subcommand → 2" 2
