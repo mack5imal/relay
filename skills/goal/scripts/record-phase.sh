@@ -549,7 +549,14 @@ if [ "$mode" = "phase" ] || [ "$mode" = "fix" ]; then
     fi
 
     detail="$crit_pass/$crit_total criteria pass"
-    [ "$(count_block FAILURE_PROBE)" -ge 1 ] && detail="$detail after one probe retry"
+    if [ "$(count_block FAILURE_PROBE)" -ge 1 ]; then
+      detail="$detail after one probe retry"
+      # An in-window retry that worked is still a failure worth seeing: the STATE.md template
+      # promises one line per FAILURE_PROBE, and tunez's phase 10 retry was otherwise only in
+      # run-report.py. section_add drops the template's placeholder and never adds a line twice.
+      probed="$(field_after FAILURE_PROBE 'Failed criterion')"
+      section_add "Failure log" "- Phase $phase ($name): ${probed:-unknown criterion} — attempt 1 failed — passed after the probe retry"
+    fi
     [ -n "$files" ] && detail="$detail, $files files changed"
     [ -n "$memory" ] && detail="$detail, memory $memory"
     commit_warn=""
@@ -736,7 +743,7 @@ completion_lines() {
     [ -e "$f" ] || continue
     [[ "$(basename "$f")" =~ ^phase-[0-9]+\.md$ ]] || continue
     t=$((t + 1))
-    grep -m1 -E '^Review:' "$f" | grep -qiE '^Review:[[:space:]]*skip.*--lean' && r=$((r + 1))
+    grep -m1 -E '^Review:' "$f" | grep -iE '^Review:[[:space:]]*skip.*--lean' >/dev/null && r=$((r + 1))
   done
   if [ "$r" -gt 0 ]; then
     if [ "$r" -eq "$t" ]; then lean="phase reviews"; else lean="phase reviews ($r of $t)"; fi

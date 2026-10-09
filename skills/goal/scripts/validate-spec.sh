@@ -63,7 +63,7 @@ if grep -qE '^\*\*Design:\*\*.*@[[:space:]]*[0-9a-f]{6,40}' "$body"; then
   ' "$body")"
   if ! grep -qiE '^##[[:space:]]+design reconciliation[[:space:]]*$' "$body"; then
     err "a design package is recorded (**Design:** … @ <sha>) but there is no '## Design reconciliation' section — compare the design against every criterion, constraint and prohibition (Stage 2.7e) and record the result, 'Reconciled: 0 conflicts — <what was compared>' included"
-  elif ! printf '%s\n' "$recon" | grep -qE '^Reconciled:[[:space:]]*[0-9]+'; then
+  elif ! printf '%s\n' "$recon" | grep -E '^Reconciled:[[:space:]]*[0-9]+' >/dev/null; then
     err "'## Design reconciliation' has no 'Reconciled: <n> conflicts' line — a zero must be recorded, not implied"
   else
     n_recon="$(printf '%s\n' "$recon" | grep -m1 -oE '^Reconciled:[[:space:]]*[0-9]+' | grep -oE '[0-9]+$')"
@@ -158,8 +158,8 @@ done < "$body.findings"
 unresolved=0
 while IFS= read -r row; do
   case "$row" in \|*) ;; *) continue ;; esac
-  printf '%s' "$row" | grep -qiE '^\|[[:space:]]*(criterion|-+)' && continue
-  printf '%s' "$row" | grep -q '{{' && continue
+  printf '%s' "$row" | grep -iE '^\|[[:space:]]*(criterion|-+)' >/dev/null && continue
+  printf '%s' "$row" | grep -F '{{' >/dev/null && continue
   status="$(printf '%s' "$row" | awk -F'|' '{ gsub(/^[ \t]+|[ \t]+$/, "", $4); print tolower($4) }')"
   reason="$(printf '%s' "$row" | awk -F'|' '{ gsub(/^[ \t]+|[ \t]+$/, "", $5); print $5 }')"
   crit="$(printf '%s' "$row" | awk -F'|' '{ gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2 }')"

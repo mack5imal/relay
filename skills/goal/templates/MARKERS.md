@@ -135,7 +135,7 @@ Phase: <N>
 Fixed: <a> of <b>
 Unresolved:
 - <file:line> <finding> — <why it could not be fixed>
-Commit: <the line relay-git.sh commit printed>
+<the line relay-git.sh commit printed, verbatim — it starts with "commit:">
 ```
 
 Omit `Unresolved:` when every finding was fixed. An unresolved finding's changes were undone and it is in `FINDINGS.md`. One attempt, no retry, no handoff — the run moves on.
@@ -155,7 +155,7 @@ CLEANUP_DONE
 Result: <applied | nothing to change | restored — checks could not stay green>
 Fixed: <n> · Deferred: <m> (<run-root>/FINDINGS.md)
 Commands: <p>/<total> exit 0
-Commit: <the line relay-git.sh commit printed, or "none">
+<the line relay-git.sh commit printed, verbatim — it starts with "commit:"; "commit: none — <why>" when it did not run>
 ```
 
 ### `SECURITY_START` (security window, first block)
@@ -188,7 +188,7 @@ SECURITY_FIX
 Fixed: <a> of <b>
 Unresolved:
 - <file:line> <finding> — <why it could not be fixed>
-Commit: <the line relay-git.sh commit printed>
+<the line relay-git.sh commit printed, verbatim — it starts with "commit:">
 ```
 
 Same rules as `REVIEW_FIX`.
@@ -300,7 +300,7 @@ RELAY_RUN_COMPLETE
 [⚠ Audit coverage: <re_verified> re-verified, <trust_prior> trust-prior (<pct>% re-verified). Eyeball UI/UX before merging.]   ← only when record-phase.sh printed it
 Audit coverage: <re_verified> re-verified, <trust_prior> trust-prior (<pct>% re-verified).   ← as record-phase.sh printed it
 All <N> phases complete. Audit passed in <rounds> round(s).
-Push: <the one line `relay-git.sh push` printed, verbatim>
+<the one line `relay-git.sh push` printed, verbatim — it starts with "push:">
 [Design captures: retaken at the end — compare <run-root>/design-check/<id>.png with design/screens/<id>.png]   ← only when record-phase.sh printed it (or its `⚠ Design captures: may be out of date — …` form)
 [Findings: <d> cleanup deferred · <k> correctness/security open · <s> checks skipped[ · <p> plan changes] — <run-root>/FINDINGS.md]   ← only when record-phase.sh printed it
 [Checks: skipped (--lean) — <phase reviews, tidy-up, security pass>]   ← only when record-phase.sh printed it
@@ -309,7 +309,7 @@ Summary: <5 lines max — what shipped, what changed, what to verify manually; w
 
 The `⚠ Unresolved:`, `⚠ Plan changed:`, `Audit coverage:` (and its `⚠` banner), `Design captures:`, `Findings:` and `Checks:` lines are copied verbatim from what `record-phase.sh --audit` printed under its summary line — never recomputed. `<pct>` is the **re-verified** share, rounded down: a run that took nothing on trust reads 100%. The `Checks:` line is information, not a warning: the owner chose `--lean`.
 
-`Push:` is `push: <branch> → <remote> (<n> commits)`, `push: skipped — <reason>` (`push: skipped — push is off for this run; run: <command>` when the run's `Push:` is off — the default), or `push: failed — <reason>; run: <command>`. A failed push never blocks completion: the run is complete, the owner pushes by hand.
+The push line is `push: <branch> → <remote> (<n> commits)`, `push: skipped — <reason>` (`push: skipped — push is off for this run; run: <command>` when the run's `Push:` is off — the default), or `push: failed — <reason>; run: <command>`. A failed push never blocks completion: the run is complete, the owner pushes by hand.
 
 Spec criteria count toward the same coverage fraction as phase criteria and deliverables: a run whose intent was stated in unverifiable terms should read as low coverage, not as a clean bill of health.
 

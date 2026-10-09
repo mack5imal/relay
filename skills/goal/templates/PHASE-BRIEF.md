@@ -238,6 +238,7 @@ Excerpt of `{{RUN_ROOT}}/STATE.md` at dispatch time — the latest engineering c
 - **Design package (`design/`):** read `HANDOFF.md` by section — the `### <id>` block for the screen you are building, plus `## Design tokens` / `## Components` / `## Copy` when your spec cites them. Open a screen's PNG only while building that screen. Never read `design/source/`: it is the designer's working files, large, and not something to port.
 - **Never read `tool-results/` or `tasks/*.output` files.** They hold output too large to show you, and reading them puts that output back in your window. Re-run the command through `run-logged.sh` and `grep` its log instead.
 - **Write files with the Write tool, not Bash heredocs, and keep each Bash call to one short step.** A long chained command can hit the 120 s tool timeout and be moved to the background.
+- **Shell.** The Bash tool may run zsh: quote globs in arguments (`--include='*.ts'`, or zsh stops with "no matches found"), never echo a bare `====` or `----` (zsh runs it as a command — write `echo '===='`), and `PIPESTATUS` is bash-only. Anything with several steps goes in a script file you write and run with `bash`.
 - **If a Bash result says the command "was moved to the background",** wait for its completion notification before you report. If it is stuck or no longer needed, stop it with `TaskStop`. Background work still running when you report delays the run's `/goal` completion check.
 
 **Commands.** Run every mandatory command — and any other command whose output is more than a few lines (builds, tests, linters, scripts) — through the logging helper. `ls`, `git status`, and `grep -n` / `sed -n` range reads can run directly:
@@ -333,6 +334,8 @@ Every command you re-run goes through `run-logged.sh` (step 4 above) so its outp
 
 **Context hygiene.** Your window is sized by what you read. Read this brief once. For spot-checks, `grep` evidence files for `Result:` lines and headings instead of opening them whole; check source with `grep -n` or the Read tool with `offset`/`limit`, never a whole-file `cat`; read specs and `ROADMAP.md` by section. Never read `tool-results/` or `tasks/*.output` files — re-run through `run-logged.sh` and `grep` the log. Write the evidence file with the Write tool. If a Bash command is "moved to the background", wait for it or `TaskStop` it before you report. Screenshots referenced by evidence files are `trust-prior-verify` unless a criterion can be settled from code, logs, or snapshot tests.
 
+**Shell.** The Bash tool may run zsh: quote globs in arguments (`--include='*.ts'`, or zsh stops with "no matches found"), never echo a bare `====` or `----` (zsh runs it as a command — write `echo '===='`), and `PIPESTATUS` is bash-only. Anything with several steps goes in a script file you write and run with `bash`.
+
 ## 7. Failure protocol
 
 Not applicable — an audit reports gaps, it does not retry. Round 1 or 2 with gaps → `AUDIT_GAPS` + fix spec; round 3 with gaps → `AUDIT_HANDOFF`.
@@ -340,7 +343,7 @@ Not applicable — an audit reports gaps, it does not retry. Round 1 or 2 with g
 <!-- mode: audit-fix -->
 ## 6. How to work
 
-Run every mandatory command you need through `bash {{RUN_ROOT}}/run-logged.sh {{RUN_ROOT}}/logs/audit-{{ROUND}}/fix-<cmd-slug>.log '<command>'`. Context hygiene: read this brief once; read files by range (`grep -n`, Read with `offset`/`limit`), never a whole-file `cat`; never read `tool-results/` or `tasks/*.output`; write files with the Write tool; wait for or `TaskStop` any command "moved to the background" before you report. Record everything you did under a `## Fix` heading in `{{EVIDENCE_PATH}}`: per gap, what changed, the command results, and the criterion's new `Result:`. Cleanliness rules from the phases still apply — run `bash {{RUN_ROOT}}/repo-state.sh added-lines {{BASELINE}}` and grep it for debug prints, TODO/FIXME, and dead imports before you finish. Then commit what you changed — `bash {{RUN_ROOT}}/relay-git.sh commit {{RUN_ROOT}} --audit-fix {{ROUND}}` — and record its line under `## Fix` (exit 3: `.gitignore` or delete the listed files and re-run; exit 1: fix what the hook reports and re-run — a timeout will not clear on a re-run; exit 4: HEAD is off the run's branch, never switch it yourself; anything you cannot resolve goes under `Unresolved:` with the line).
+Run every mandatory command you need through `bash {{RUN_ROOT}}/run-logged.sh {{RUN_ROOT}}/logs/audit-{{ROUND}}/fix-<cmd-slug>.log '<command>'`. Context hygiene: read this brief once; read files by range (`grep -n`, Read with `offset`/`limit`), never a whole-file `cat`; never read `tool-results/` or `tasks/*.output`; write files with the Write tool; wait for or `TaskStop` any command "moved to the background" before you report; the Bash tool may run zsh, so quote globs in arguments (`--include='*.ts'`), never echo a bare `====`, and put several steps in a script file run with `bash`. Record everything you did under a `## Fix` heading in `{{EVIDENCE_PATH}}`: per gap, what changed, the command results, and the criterion's new `Result:`. Cleanliness rules from the phases still apply — run `bash {{RUN_ROOT}}/repo-state.sh added-lines {{BASELINE}}` and grep it for debug prints, TODO/FIXME, and dead imports before you finish. Then commit what you changed — `bash {{RUN_ROOT}}/relay-git.sh commit {{RUN_ROOT}} --audit-fix {{ROUND}}` — and record its line under `## Fix` (exit 3: `.gitignore` or delete the listed files and re-run; exit 1: fix what the hook reports and re-run — a timeout will not clear on a re-run; exit 4: HEAD is off the run's branch, never switch it yourself; anything you cannot resolve goes under `Unresolved:` with the line).
 
 ## 7. Failure protocol
 
@@ -350,6 +353,8 @@ None in this window — do the work once. Whatever remains unfixed goes in the `
 ## 6. How to work
 
 **Context hygiene.** Everything a tool returns stays in your window until you finish. Read this brief once. **Never `cat` a whole file or print a whole diff:** run a diff through `run-logged.sh` into a log and read the log by range; open source with `grep -n` or the Read tool with `offset`/`limit`. Never read `tool-results/` or `tasks/*.output` files. Write files with the Write tool. If a Bash command is "moved to the background", wait for it or `TaskStop` it before you report.
+
+**Shell.** The Bash tool may run zsh: quote globs in arguments (`--include='*.ts'`, or zsh stops with "no matches found"), never echo a bare `====` or `----` (zsh runs it as a command — write `echo '===='`), and `PIPESTATUS` is bash-only. Anything with several steps goes in a script file you write and run with `bash`.
 
 **Commands** go through the logging helper, which prints only the exit code, the log path and a short tail:
 
@@ -400,7 +405,7 @@ bash {{RUN_ROOT}}/relay-git.sh commit {{RUN_ROOT}} --cleanup                  # 
 bash {{RUN_ROOT}}/relay-git.sh commit {{RUN_ROOT}} --security-fix             # a security fix
 ```
 
-Record the line it prints in the evidence file and on your block's `Commit:` line. Exit 0 covers committed, already committed and none. **Exit 3** (a secret or generated file) → add it to `.gitignore` or delete it, and run again. **Exit 1** (a hook or signing refused it, or it timed out) → fix what the hook reports and run again; if you cannot, undo your changes as for a red gate and record why. **Exit 4** (HEAD is off the run's branch) → never switch it yourself; record the line. None of these hands off.
+Record the line it prints in the evidence file and, verbatim, as your block's last line (it starts with `commit:` — add no label of your own). Exit 0 covers committed, already committed and none. **Exit 3** (a secret or generated file) → add it to `.gitignore` or delete it, and run again. **Exit 1** (a hook or signing refused it, or it timed out) → fix what the hook reports and run again; if you cannot, undo your changes as for a red gate and record why. **Exit 4** (HEAD is off the run's branch) → never switch it yourself; record the line. None of these hands off.
 
 <!-- /mode -->
 <!-- mode: review review-fix cleanup security security-fix -->

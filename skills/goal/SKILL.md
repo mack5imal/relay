@@ -83,7 +83,11 @@ bash "$RELAY_DIR/scripts/active-runs.sh" "$RELAY_BASE"
 
 Run the scan through the script, never as an inline loop: the Bash tool runs the user's shell,
 and under zsh an unmatched `"$RELAY_BASE"/*/STATE.md` is an error — the first run in an empty
-`.relay/` failed on it.
+`.relay/` failed on it. The same shell bites ad-hoc commands too: quote a glob passed as an argument
+(`--include='*.ts'`, or zsh stops with "no matches found"); never echo a bare `====` (zsh runs it
+as a command — `echo '===='`); `${PIPESTATUS[0]}` is empty under zsh; a variable named `path`
+replaces `PATH`; and `$var` holding spaces does not split into words. Put anything multi-step in a
+bash script file.
 
 Then decide:
 
@@ -404,9 +408,17 @@ Run all five, in order, every time:
 Then **Seed Closer** rounds until the gate passes, each naming the lowest-scoring dimensions:
 *"Boundary clarity is at 0.6 — what is the one thing you would be annoyed to find changed?"*
 
-**Never force-stop.** From round 6 on, offer: **Write SPEC.md** / **Keep going** / **Write it and
-flag the gaps**. If the user stops early, the below-minimum dimensions are recorded as assumptions,
-not silently treated as answered.
+**Never force-stop.** From round 6 on, the **last question of every round** is the choice —
+**Write SPEC.md** / **Keep going** / **Write it and flag the gaps** — with your recommendation
+first and the dimensions still below minimum named in the question. Not a closing sentence, not
+left for the user to raise: on the tunez run rounds 6 and 7 never offered it. If the user stops
+early, the below-minimum dimensions are recorded as assumptions, not silently treated as answered.
+
+**Show the final score.** When the gate passes (after round 5 or any later round), the next
+question opens with the final scoreboard — `Scores (final) — goal … · boundary … · constraint … ·
+acceptance … → ambiguity <x> (gate ≤ 0.15, passed)` — and asks **Write SPEC.md (Recommended)** /
+**Keep going**. A passing score that only reaches the interview log is one the user never saw
+(tunez: 0.14, passed, never shown).
 
 ### Question discipline
 
@@ -951,6 +963,15 @@ the summary; don't read the phase specs again. Re-run it after every Stage 6 rev
 
 ### Stage 6b — Summary print
 
+**Every count in the summary is copied from a script's output — never counted by hand.** On
+tunez the summary said 53 components where the spec said 50, and "7 worth your eye" where
+`RUBRIC.md` flagged 8 (and listed 5). `Worth your eye (<K> of <N> criteria)` takes `<K>` and `<N>`
+from `build-rubric.sh`'s `rubric:` line and lists exactly `RUBRIC.md`'s flagged bullets; the
+`Design:` line's screens (and components / copy strings, when you mention them) come from
+`check-design.sh`'s `design: <S> screens, <T> tokens, <C> components, <P> copy strings` line; the
+phase and criteria counts come from `ROADMAP.md` and `validate-spec.sh`. A number no script prints
+is left out rather than estimated.
+
 Print a scannable summary in this exact shape:
 
 ```
@@ -1123,7 +1144,7 @@ Slash commands fire **only from user input** — agent message text is never par
 
 5. Follow the fenced block with **exactly this instruction** (substitute the working directory's absolute path for `<cwd>`):
 
-> **Exit this session (`/exit`), start a new Claude Code session in `<cwd>`, and paste the `/goal` line above there.** The new session becomes the run's orchestrator: it starts with an empty context window, and its transcript holds only the run, which is what `check-run.py` reads. From there it runs autonomously — auto-retry, fix-spec recovery, per-phase memory writeback — until `RELAY_RUN_COMPLETE` appears.
+> **Start a new Claude Code session in `<cwd>` and paste the `/goal` line above there — not into this session.** That session runs the build on its own: it becomes the run's orchestrator, starts with an empty context window, and its transcript holds only the run, which is what `check-run.py` reads. From there it runs autonomously — auto-retry, fix-spec recovery, per-phase memory writeback — until `RELAY_RUN_COMPLETE` appears. You can keep this planning session open to refer back to these instructions, or close it; the run doesn't need it.
 
    Then, still part of the same instruction, print this paragraph (same substitutions):
 

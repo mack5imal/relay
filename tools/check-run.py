@@ -349,12 +349,12 @@ def check_orchestrator(recs: list[tuple[int, dict]], run_root: Path, f: Findings
                 if "STATE.md" in scrubbed:
                     if re.search(r">\s*\S*STATE\.md|sed\s+-i|perl\s+-p?i|open\([^)]*STATE\.md[^)]*['\"]w|tee\s+\S*STATE\.md|\.write\(", cmd):
                         f.err(f"line {line}: Bash writes STATE.md outside record-phase.sh: {cmd[:160]!r}")
-                    elif re.search(r"grep[^\n]*Notable events", cmd):
+                    elif re.search(r"(grep|awk|sed)[^\n]*Notable events", cmd):
                         pass
                     elif not state_read_seen:
                         state_read_seen = True
                     else:
-                        f.warn(f"line {line}: Bash reads STATE.md again (protocol: once at start, then grep Notable events at completion): {cmd[:120]!r}")
+                        f.warn(f"line {line}: Bash reads STATE.md again (protocol: once at start, then the Notable events section at completion): {cmd[:120]!r}")
                 for hit in changes_directory(cmd):
                     f.err(f"line {line}: orchestrator changes directory (the /goal line and PROTOCOL.md: never cd elsewhere): {hit!r}")
                 for w in raw_git_writes(cmd):
@@ -632,8 +632,9 @@ def check_end_state(recs: list[tuple[int, dict]], run_root: Path, echoed_done: i
             f.warn("RELAY_RUN_COMPLETE without running relay-git.sh push (it would have skipped the owner's branch)")
     if run_complete:
         complete_block = assistant_text.split("RELAY_RUN_COMPLETE")[-1]
-        if not re.search(r"^\s*Push:\s*push:", complete_block, re.M):
-            f.warn("RELAY_RUN_COMPLETE has no `Push:` line carrying relay-git.sh push's output")
+        # the push line verbatim (`push: …`); runs before the stutter fix wrote `Push: push: …`
+        if not re.search(r"^\s*(Push:\s*)?push:", complete_block, re.M):
+            f.warn("RELAY_RUN_COMPLETE has no push line carrying relay-git.sh push's output")
     if handoff and status != "BLOCKED":
         f.err(f"{handoff[0]} printed but STATE.md Status is {status}")
     if status == "BLOCKED" and not handoff:

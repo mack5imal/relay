@@ -264,7 +264,13 @@ assert_eq "fix subject" "relay: phase 1 — Reader core (fix)" "$(g log -1 --for
 
 printf 'p\n' > "$R/polish.txt"
 rg commit "$RUN" 3
-assert_eq "name falls back to the spec header" "relay: phase 3 — Polish pass" "$(g log -1 --format=%s)"
+assert_eq "a phase with no STATE.md row is named from its spec" "relay: phase 3 — Polish pass" "$(g log -1 --format=%s)"
+# renamed mid-run: the spec says the new name, the STATE.md row still the old one (tunez phase 18)
+printf 'RELAY_PHASE_START\nPhase: 2 of 3 — Command-line options\n' > "$R/$RUN/phases/phase-2.md"
+printf 'o\n' > "$R/options.txt"
+rg commit "$RUN" 2
+assert_eq "the spec's name wins over a stale STATE.md row" "relay: phase 2 — Command-line options" "$(g log -1 --format=%s)"
+rm -f "$R/$RUN/phases/phase-2.md"
 
 printf 'a\n' >> "$R/reader.py"
 rg commit "$RUN" --audit-fix 2

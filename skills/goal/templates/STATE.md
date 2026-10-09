@@ -40,7 +40,7 @@ Append-only log of anything noteworthy that happened during execution (assumptio
 
 ## Failure log
 
-If a phase hits FAILURE_PROBE, record it here:
+`record-phase.sh` logs each failure here: a phase that passed after its probe retry, an escalation to a fix window, a dispatch that returned no report or was interrupted.
 
 - Phase {{N}} ({{NAME}}): {{WHAT_FAILED}} — {{WHAT_WAS_TRIED}} — {{NEXT_MOVE}}
 

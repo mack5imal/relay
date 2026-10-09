@@ -21,6 +21,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The handoff no longer tells you to exit the planning session.** It says to start a new
+  session in the same folder and paste the `/goal` line there; the planning session can stay
+  open for reference or be closed.
+- **The run's last message covers every phase.** The closing step read the first 40 lines of
+  the run's events, which ended at phase 12 on a 19-phase run. It now reads the whole section.
+- **A phase renamed mid-run is committed under its new name.** The commit subject used to come
+  from the progress table, which kept the old name ("Deploy a Vercel preview" after the deploy
+  was removed).
+- **The interview always offers the stop-or-continue choice and shows the final score.** From
+  round 6, each round ends with "Write SPEC.md / Keep going / Write it and flag the gaps"; when
+  the score passes, the next question shows it.
+- **The plan summary's numbers match the plan.** Counts (criteria worth a human look, screens,
+  components) are copied from the scripts' output instead of counted by hand; the tunez summary
+  disagreed with its own rubric and spec.
+- **A phase that passed after a retry shows in the failure log.** Only escalations were logged.
+- **No more doubled labels** in the closing message and check blocks (`Push: push: …`,
+  `Commit: commit: …`).
+- **Shell slips.** The briefs and manuals now warn about the zsh traps runs hit (an unquoted glob,
+  an `echo ====`), and every script that piped into `grep -q` reads its whole input, so a long
+  input can no longer turn a match into a miss.
 - **The design screenshots you compare after a run show the finished build.** The polish
   phase took them, and the review, tidy-up and security fixes ran afterwards; on the tunez run
   the tidy-up changed 9 screens, so the owner was sent to compare outdated pictures. The polish
