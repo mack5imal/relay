@@ -768,6 +768,16 @@ printf 'AUDIT_START\nAUDIT_VERIFY\nAUDIT_COMPLETE\nRounds: 1\n' > "$w/run/phases
 run bash "$RP" "$w/run" --audit 1
 assert_contains "no counts at all → says so" "Audit coverage: not reported — AUDIT_COMPLETE carried no counts." "$OUT"
 rm -rf "$w"
+# the audit retakes the design screenshots (audit step 4b); its line reaches RELAY_RUN_COMPLETE
+cov_run "Audit coverage: 31 re-verified / 0 trust-prior" "Design captures: retaken — 14 screens"
+assert_contains "retaken → the compare line" "/run/design-check/<id>.png with design/screens/<id>.png" "$OUT"
+assert_contains "… worded as retaken at the end" "Design captures: retaken at the end — compare " "$OUT"
+assert_missing "… with no warning" "⚠" "$OUT"
+assert_contains "… after the coverage line" "Design captures: retaken" "$(printf '%s\n' "$OUT" | tail -1)"
+cov_run "Audit coverage: 31 re-verified / 0 trust-prior" "Design captures: not retaken — exit 1; run: RELAY_DESIGN_CHECK_DIR=/r/design-check npx playwright test e2e/capture.spec.ts"
+assert_contains "not retaken → the ⚠ line with the reason and command" "⚠ Design captures: may be out of date — not retaken: exit 1; run: RELAY_DESIGN_CHECK_DIR=/r/design-check npx playwright test e2e/capture.spec.ts" "$OUT"
+cov_run "Audit coverage: 31 re-verified / 0 trust-prior"
+assert_missing "no Design captures field (no design, or a pre-change run) → no line" "Design captures" "$OUT"
 
 echo
 echo "[23] --interrupted: cut short from outside — logged, re-dispatched, never a strike"

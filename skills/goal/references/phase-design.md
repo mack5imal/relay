@@ -52,7 +52,9 @@ one theme file and the named components as primitives; each content phase puts a
 `design/HANDOFF.md §<screen-id>` + `design/screens/<screen-id>.png` as exemplars; Polish &
 Harden captures each approved screen to `$RELAY_DESIGN_CHECK_DIR/<screen-id>.png` (the phase sets
 it to `<run-root>/design-check` — never write a `.relay/` path into product code), or records
-`capture unavailable: <screen-id> — <reason>`, for the owner's side-by-side after the run.
+`capture unavailable: <screen-id> — <reason>`, for the owner's side-by-side after the run. It
+records the one command that takes them as `Capture command: <command>`; the audit re-runs it, so
+the screenshots show the build after the review, tidy-up and security fixes.
 
 The fidelity criteria's check, `<run-root>/check-design.sh design --verify <aspect>`, covers
 every approved screen at once, so it cannot pass until the last screen exists: make it a

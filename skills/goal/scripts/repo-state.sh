@@ -29,6 +29,7 @@
 # Usage:
 #   repo-state.sh deliverable   <baseline> <path>
 #       -> "present — <evidence>" (exit 0) | "missing" (exit 1)
+#          A glob <path> matches as git's default pathspec or as `:(glob)` (so `**/` works).
 #   repo-state.sh changed-files <baseline>
 #       -> newline-delimited paths changed since baseline (tracked + untracked + deleted)
 #   repo-state.sh added-lines   <baseline>
@@ -47,27 +48,61 @@ baseline_ok() {
   git rev-parse --verify --quiet "${b}^{commit}" >/dev/null 2>&1
 }
 
+# is_glob <path> — true when <path> is a glob (and not already a `:(magic)` pathspec).
+is_glob() {
+  case "$1" in :*) return 1 ;; *[*?[]*) return 0 ;; esac
+  return 1
+}
+
+# on_disk <path> — the path exists, or (a glob) some file under . matches it. Bash 3.2 has no
+# globstar, so a glob goes to find, whose `*` already crosses `/`: `**/` collapses to `*`.
+on_disk() {
+  local p="$1" pat
+  if ! is_glob "$p"; then [ -e "$p" ]; return; fi
+  pat="./${p#./}"
+  while :; do
+    case "$pat" in *'**/'*) pat="${pat%%\*\*/*}*${pat#*\*\*/}" ;; *) break ;; esac
+  done
+  pat="${pat//\*\*/*}"
+  [ -n "$(find . -name .git -prune -o -path "$pat" -print 2>/dev/null | head -1)" ]
+}
+
 cmd_deliverable() {
   local baseline="$1" path="$2"
+  # A glob is tried as git reads it by default (`*` crosses `/`) and as a `:(glob)` pathspec
+  # (`**/` is zero or more directories; `*` stops at `/`). Either match counts: `:(glob)` alone
+  # would turn `src/*.ts` with only nested files into "missing"; the default alone misses
+  # `test/**/*.ts` with files directly under test/.
+  local specs=("$path")
+  is_glob "$path" && specs+=(":(glob)$path")
 
   if in_git_repo && baseline_ok "$baseline"; then
     # 1) tracked change vs baseline: committed, staged, unstaged, or deleted.
-    local stat
-    stat="$(git diff --stat "$baseline" -- "$path" 2>/dev/null || true)"
+    local stat="" untracked="" tracked="" s
+    for s in "${specs[@]}"; do
+      stat="$(git diff --stat "$baseline" -- "$s" 2>/dev/null || true)"
+      [ -n "$stat" ] && break
+    done
     if [ -n "$stat" ]; then
       printf 'present — changed vs baseline (%s)\n' \
         "$(printf '%s' "$stat" | tail -1 | sed 's/^[[:space:]]*//')"
       return 0
     fi
     # 2) brand-new untracked deliverable (diff-invisible).
-    local untracked
-    untracked="$(git ls-files --others --exclude-standard -- "$path" 2>/dev/null | head -1 || true)"
+    for s in "${specs[@]}"; do
+      untracked="$(git ls-files --others --exclude-standard -- "$s" 2>/dev/null | head -1 || true)"
+      [ -n "$untracked" ] && break
+    done
     if [ -n "$untracked" ]; then
       printf 'present — untracked new file (%s)\n' "$untracked"
       return 0
     fi
     # 3) backward-compat net: the path exists / is tracked but is unchanged this run.
-    if [ -e "$path" ] || [ -n "$(git ls-files -- "$path" 2>/dev/null | head -1 || true)" ]; then
+    for s in "${specs[@]}"; do
+      tracked="$(git ls-files -- "$s" 2>/dev/null | head -1 || true)"
+      [ -n "$tracked" ] && break
+    done
+    if on_disk "$path" || [ -n "$tracked" ]; then
       printf 'present — exists, unchanged since baseline\n'
       return 0
     fi
@@ -76,13 +111,18 @@ cmd_deliverable() {
   fi
 
   # Fallback: baseline missing/invalid or not a git repo — existence only.
-  if [ -e "$path" ]; then
+  if on_disk "$path"; then
     printf 'present — exists on disk (baseline unavailable)\n'
     return 0
   fi
-  if in_git_repo && [ -n "$(git ls-files -- "$path" 2>/dev/null | head -1 || true)" ]; then
-    printf 'present — tracked (baseline unavailable)\n'
-    return 0
+  if in_git_repo; then
+    local s
+    for s in "${specs[@]}"; do
+      if [ -n "$(git ls-files -- "$s" 2>/dev/null | head -1 || true)" ]; then
+        printf 'present — tracked (baseline unavailable)\n'
+        return 0
+      fi
+    done
   fi
   printf 'missing\n'
   return 1

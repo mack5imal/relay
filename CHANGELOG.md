@@ -21,6 +21,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The design screenshots you compare after a run show the finished build.** The polish
+  phase took them, and the review, tidy-up and security fixes ran afterwards; on the tunez run
+  the tidy-up changed 9 screens, so the owner was sent to compare outdated pictures. The polish
+  phase now records the one command that takes them, and the final audit runs it again. When
+  the retake can't run, the run still finishes, and its last message says the screenshots may be
+  out of date and gives the command.
+- **Deliverables written as `dir/**/*.ext` are found.** The audit's deliverable check read
+  `test/accuracy/**/*.accuracy.ts` as missing although three files matched, because git's
+  default pathspec needs a directory where `**/` stands. A glob now counts when either git's
+  default reading or `:(glob)` matches it, so a plain `src/*.ts` with only nested files is still
+  found.
 - **The planner asks before changing what you settled.** After the interview, a change to
   anything you answered, a constraint, a prohibition or an outward-facing target (where and as
   whom something deploys, a remote, anything pushed) is a question — "you said X; I found Y; I

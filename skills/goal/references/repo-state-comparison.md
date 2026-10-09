@@ -84,6 +84,11 @@ bash <run-root>/repo-state.sh deliverable "$(baseline)" "<path>"
 
 `missing` (exit 1) → `AUDIT_GAP: phase <N> deliverable "<bullet>" not present in working tree or diff`.
 
+A glob counts when either git reading matches it: the default pathspec (`*` crosses `/`, so
+`src/*.ts` finds nested files) or `:(glob)` (`**/` is zero or more directories, so
+`test/**/*.ts` finds files directly under `test/`). Without a usable baseline, a glob is
+matched on disk with `find`.
+
 ### Per-phase cleanliness check
 
 ```

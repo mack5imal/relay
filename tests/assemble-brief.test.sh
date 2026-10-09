@@ -300,6 +300,29 @@ assert_contains "audit context hygiene" "grep\` evidence files for \`Result:\` l
 assert_contains "whole failure log for audits" "unrelated failure line" "$B"
 assert_missing "phase-row absent" "| Phase |" "$B"
 assert_missing "no placeholder survives" "{{" "$B"
+assert_contains "the audit retakes the design screenshots (step 4b)" "4b. **Retake the design screenshots**" "$B"
+assert_contains "no capture command recorded → says so" "The recorded capture command: none recorded." "$B"
+rm -rf "$w"
+
+# ---------------------------------------------------------------------------
+echo "[6b] Audit brief: the capture command comes from the latest phase evidence that records one"
+w="$(mktemp -d)"; make_run "$w/run"
+printf '## Attempt 1\nCapture command: `npx playwright test old.spec.ts`\n## Attempt 2\nCapture command: npm run build && npx playwright test e2e/capture.spec.ts  \n' > "$w/run/phases/phase-2.evidence.md"
+printf '## Attempt 1\nCapture command: `npm run capture:phase9`\n' > "$w/run/phases/phase-9.evidence.md"
+printf '## Attempt 1\nResult: pass\n' > "$w/run/phases/phase-10.evidence.md"
+printf 'Capture command: from-a-review\n' > "$w/run/phases/phase-12.review.evidence.md"
+run bash "$AB" "$w/run" --audit 1
+assert_rc "audit brief with capture commands exits 0" 0
+B="$(cat "$w/run/phases/audit-1.brief.md")"
+assert_contains "highest phase that records one wins (10 records none)" "The recorded capture command: \`npm run capture:phase9\` (recorded by phase 9)." "$B"
+assert_missing "a review evidence file is not a phase's" "from-a-review" "$B"
+rm "$w/run/phases/phase-9.evidence.md"
+run bash "$AB" "$w/run" --audit 1
+B="$(cat "$w/run/phases/audit-1.brief.md")"
+assert_contains "the last line in a file (its latest attempt), '&&' kept, backticks optional" "The recorded capture command: \`npm run build && npx playwright test e2e/capture.spec.ts\` (recorded by phase 2)." "$B"
+run bash "$AB" "$w/run" --phase 1
+B="$(cat "$w/run/phases/phase-1.brief.md")"
+assert_missing "phase briefs carry no audit retake step" "Retake the design screenshots" "$B"
 rm -rf "$w"
 
 # ---------------------------------------------------------------------------

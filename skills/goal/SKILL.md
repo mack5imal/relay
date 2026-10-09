@@ -1000,6 +1000,7 @@ Worth your eye (<K> of <N> criteria):
   - Phase <n> (human eye): <criterion>
   - Phase <n> (outside the repo): <criterion>
   - Design (after the run): compare <run-root>/design-check/<id>.png with design/screens/<id>.png
+    (the audit retakes them at the end, so they show the finished build)
   (or: "none — every criterion is checkable inside the repo")
 
 Stack: <stack> · pkg: <pm> · build/test/lint: <commands>

@@ -186,6 +186,7 @@ assert_contains "S10 copy" "**S10 — Design: copy matches the design**: all 5 s
 assert_contains "S11 capture" "**S11 — Design: screens captured for review**" "$OUT"
 assert_contains "run root substituted" ".relay/demo-Ab3Kx9/design-check/<id>.png" "$OUT"
 assert_contains "reason passes the capture" "capture unavailable: <id>" "$OUT"
+assert_contains "the evidence records the capture command for the audit" "\`Capture command: <command>\`, which the audit re-runs" "$OUT"
 assert_contains "comparison is never a gate" "never a gate" "$OUT"
 n="$(printf '%s\n' "$OUT" | grep -c '^  - Acceptance:')"
 if [ "$n" = 5 ]; then ok "every criterion has an Acceptance line"; else no "every criterion has an Acceptance line" "got $n"; fi
