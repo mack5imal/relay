@@ -322,6 +322,12 @@ rm "$w/run/phases/phase-9.evidence.md"
 run bash "$AB" "$w/run" --audit 1
 B="$(cat "$w/run/phases/audit-1.brief.md")"
 assert_contains "the last line in a file (its latest attempt), '&&' kept, backticks optional" "The recorded capture command: \`npm run build && npx playwright test e2e/capture.spec.ts\` (recorded by phase 2)." "$B"
+assert_contains "the audit inspects the tests behind each spec criterion" "Then inspect the tests behind it." "$B"
+assert_contains "… against four exact checks" "**The expected value is independent**" "$B"
+assert_contains "… a clear-cut miss is a gap" "test does not check the criterion" "$B"
+assert_contains "… a judgment call is an [audit] note, never a gap" "- [audit] <file:line>" "$B"
+assert_contains "deliverables must be real and used" "A present file must also be **real and used**" "$B"
+assert_contains "coverage reports what it rested on" "(<tests_inspected> tests inspected, <existence_only> existence only)" "$B"
 run bash "$AB" "$w/run" --phase 1
 B="$(cat "$w/run/phases/phase-1.brief.md")"
 assert_missing "phase briefs carry no audit retake step" "Retake the design screenshots" "$B"
@@ -340,6 +346,7 @@ assert_contains "audit-fix contract" "exactly one \`AUDIT_FIX\` block" "$B"
 assert_contains "audit-fix evidence path" "phases/audit-1.evidence.md" "$B"
 assert_contains "audit-fix report path" "\`$w/run/phases/audit-fix-1.report.md\`" "$B"
 assert_contains "audit-fix context hygiene" "Context hygiene: read this brief once" "$B"
+assert_contains "a weak test is strengthened, never relaxed" "Never relax the criterion or the test to match the code." "$B"
 assert_missing "no placeholder survives" "{{" "$B"
 run bash "$AB" "$w/run" --audit-fix 2
 assert_rc "missing audit-fix spec exits 1" 1

@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The final audit reads the tests behind your success criteria.** A passing test only proves
+  what it asserts, so for each success criterion the audit now checks that its tests use the
+  same thresholds, exercise the situations the criterion names, actually run, and work out the
+  expected answer themselves rather than asking the code under test. A clear mismatch goes
+  through the audit's fix loop: the test is strengthened, then the code is fixed if it fails.
+  A judgment call is noted in `FINDINGS.md` and never blocks the run. Promised files must also
+  be real (not placeholders) and used by something.
+- **The coverage line says what "re-verified" rested on**: how many success criteria had their
+  tests inspected, and how many checks only confirmed a file exists. tunez read "100%
+  re-verified" while 146 of its 323 checks were file-exists checks.
+
 - **The planner checks the design pictures against the typed wording.** The designer hands
   back screen pictures and a typed list of every piece of text, and the build was held only to
   the list. At the design step a subagent now compares each picture's visible text with the
@@ -25,6 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only found at the end of an unattended run.
 
 ### Fixed
+
+- **The docs say a run can go quiet.** After a while with nothing new, Claude Code pauses idle
+  check-ins and only a finishing subagent wakes the run, so a hung subagent leaves it silent.
+  README and the orchestrator's manual now say so and what to do: send any message, and relay
+  checks whether the step is still running.
+- **CI runs on current GitHub Actions releases** (`checkout` and `setup-node` v7, `setup-uv`
+  10.2.0, all Node 24), clearing the Node 20 deprecation warning on every run.
 
 - **The tidy-up never makes a test check the code against itself.** It used to treat a test's
   own reference calculation as duplicate code and replace it with a call to the production

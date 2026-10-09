@@ -686,6 +686,10 @@ printf '# Findings\n\n## Security\n- [security] a:1 — b — unresolved: c — 
 audit_done "$w/run"
 assert_eq "⚠ Unresolved comes first, then ⚠ Plan changed" "⚠ Unresolved: 1 correctness/security finding(s) open, 0 check(s) skipped — see $w/run/FINDINGS.md
 ⚠ Plan changed: 1 check fix(es) went against the plan summary — see $w/run/FINDINGS.md" "$(printf '%s\n' "$OUT" | grep '^⚠')"
+printf '# Findings\n\n## Audit\n- [audit] test/a.test.ts:12 — only the common path — note: no empty-history case — next: add one\n' > "$w/run/FINDINGS.md"
+audit_done "$w/run"
+assert_contains "[audit] notes are counted in the Findings line" "Findings: 0 cleanup deferred · 0 correctness/security open · 0 checks skipped · 1 audit notes — $w/run/FINDINGS.md" "$OUT"
+assert_missing "… and are never a warning" "⚠" "$OUT"
 rm -rf "$w"
 
 w="$(mktemp -d)"; make_run "$w/run" 2; check_fields "$w/run" "off — --lean" "skip — --lean"
@@ -782,6 +786,13 @@ cov_run "Audit coverage: 31 re-verified / 0 trust-prior" "Design captures: not r
 assert_contains "not retaken → the ⚠ line with the reason and command" "⚠ Design captures: may be out of date — not retaken: exit 1; run: RELAY_DESIGN_CHECK_DIR=/r/design-check npx playwright test e2e/capture.spec.ts" "$OUT"
 cov_run "Audit coverage: 31 re-verified / 0 trust-prior"
 assert_missing "no Design captures field (no design, or a pre-change run) → no line" "Design captures" "$OUT"
+# what "re-verified" rested on (audit step 8): the tests-inspected / existence-only split
+cov_run "Audit coverage: 323 re-verified (22 tests inspected, 146 existence only) / 0 trust-prior (100% re-verified)"
+assert_contains "the split is said in plain words" "Audit coverage: 323 re-verified, 0 trust-prior (100% re-verified) — 22 spec criteria's tests inspected; 146 checks only confirmed a file exists." "$OUT"
+cov_run "Audit coverage: 60 re-verified (5 tests inspected, 10 existence only) / 40 trust-prior (60%)"
+assert_contains "… after the banner too" "Audit coverage: 60 re-verified, 40 trust-prior (60% re-verified) — 5 spec criteria's tests inspected; 10 checks only confirmed a file exists." "$OUT"
+cov_run "Audit coverage: 31 re-verified / 0 trust-prior (100% re-verified)"
+assert_missing "an audit without the split (older runs) prints exactly as before" "tests inspected" "$OUT"
 
 echo
 echo "[23] --interrupted: cut short from outside — logged, re-dispatched, never a strike"

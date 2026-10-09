@@ -80,6 +80,8 @@ Between dispatch and hand-back, three kinds of message can arrive. None of them 
   - If it lists **only shell tasks**, no subagent is running, so they are orphans a finished subagent left behind — and while they are listed, the `/goal` evaluator defers its check. Stop each with `TaskStop <id>`, then continue the loop. `TaskStop` echoes the whole original command back into your window; that is the accepted cost of an orphan. Never `TaskStop` a subagent.
 - The check-in suggests reading the tasks' output. **Do not.** A subagent's `tasks/<id>.output` file is its entire transcript, and files under `tool-results/` are output too large to show — reading either pulls a whole window's worth of tokens into yours.
 
+**Check-ins can stop.** After a stretch with nothing new, Claude Code may say idle check-ins are paused until the next message. From then on only a hand-back (or a `finished` notification) wakes you — so a subagent that hangs without finishing leaves the run silent, and nothing on your side notices. That is expected, not something to work around: the owner's next message wakes the run, and a turn that starts while you are waiting on a hand-back goes through `recover.sh` first ("After an interruption"), which says whether the window is still running.
+
 ### No-report dispatches
 
 A dispatch that returns without the required blocks — the subagent ran out of context, hit a tool error, or ended with prose — is not a phase failure; it is a dispatch failure, and the 3-strike protocol does not apply. Record it:

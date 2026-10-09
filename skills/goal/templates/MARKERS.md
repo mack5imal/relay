@@ -199,6 +199,7 @@ Each review, tidy-up and security window appends its own section — `## Review 
 
 ```
 - [<correctness|security|cleanup>] <file:line> — <what> — <deferred|unresolved>: <reason> — next: <suggested move>
+- [audit] <file:line> — <what> — note: <why the test may be weak> — next: <suggested move>   ← the audit's judgment calls (step 5c); never a gap
 - [plan] <file:line> — <what the fix changed> — changed: plan said "<the line, quoted>" — next: keep it, or revert <commit or file>
 ```
 
@@ -228,12 +229,14 @@ Phases:
 - Phase 1: <DONE ✓ | DONE missing | evidence missing> · criteria <p> pass / <f> fail / <t> trust-prior · deliverables <d>/<D> present
 - Phase 2: ...
 Commands: <n>/<total> exit 0
-Spec: <m> met / <f> not met / <t> trust-prior · prohibitions <v> violated   (omit when no SPEC.md)
+Spec: <m> met / <f> not met / <t> trust-prior · tests inspected <i> · prohibitions <v> violated   (omit when no SPEC.md)
 Failures:
 - <cmd>: exit <code> — log: <run-root>/logs/audit-<round>/<slug>.log
 - Phase <k> / C<j> "<criterion>": fail
 - Phase <k> / deliverable "<bullet>": missing
 - Spec S<k> "<label>": not met
+- Spec S<k> "<label>": test does not check the criterion — <which check>
+- Phase <k> / deliverable "<bullet>": <unused | stub>
 - Uncommitted: <n> path(s) — <first few>
 Summary: <pass count> pass, <fail count> fail, <trust count> trust-prior, <missing count> deliverable-gaps, <s> spec-gaps
 ```
@@ -261,7 +264,7 @@ Commands re-run clean: <count>
 Acceptance criteria: <pass count> pass / <0> fail / <trust count> trust-prior
 Deliverables: <present count> present / <0> missing
 Spec criteria: <met count> met / <0> not met / <trust count> trust-prior   (omit when no SPEC.md)
-Audit coverage: <re_verified> re-verified / <trust> trust-prior (<pct>% re-verified)
+Audit coverage: <re_verified> re-verified (<i> tests inspected, <e> existence only) / <trust> trust-prior (<pct>% re-verified)
 Design captures: <retaken — <n> screens | not retaken — <reason>; run: <command>>   (omit when there is no design-capture criterion)
 ```
 
@@ -298,11 +301,11 @@ RELAY_RUN_COMPLETE
 [⚠ Unresolved: <k> correctness/security finding(s) open, <s> check(s) skipped — see <run-root>/FINDINGS.md]   ← only when record-phase.sh printed it
 [⚠ Plan changed: <p> check fix(es) went against the plan summary — see <run-root>/FINDINGS.md]   ← only when record-phase.sh printed it
 [⚠ Audit coverage: <re_verified> re-verified, <trust_prior> trust-prior (<pct>% re-verified). Eyeball UI/UX before merging.]   ← only when record-phase.sh printed it
-Audit coverage: <re_verified> re-verified, <trust_prior> trust-prior (<pct>% re-verified).   ← as record-phase.sh printed it
+Audit coverage: <re_verified> re-verified, <trust_prior> trust-prior (<pct>% re-verified)[ — <i> spec criteria's tests inspected; <e> checks only confirmed a file exists].   ← as record-phase.sh printed it
 All <N> phases complete. Audit passed in <rounds> round(s).
 <the one line `relay-git.sh push` printed, verbatim — it starts with "push:">
 [Design captures: retaken at the end — compare <run-root>/design-check/<id>.png with design/screens/<id>.png]   ← only when record-phase.sh printed it (or its `⚠ Design captures: may be out of date — …` form)
-[Findings: <d> cleanup deferred · <k> correctness/security open · <s> checks skipped[ · <p> plan changes] — <run-root>/FINDINGS.md]   ← only when record-phase.sh printed it
+[Findings: <d> cleanup deferred · <k> correctness/security open · <s> checks skipped[ · <p> plan changes][ · <a> audit notes] — <run-root>/FINDINGS.md]   ← only when record-phase.sh printed it
 [Checks: skipped (--lean) — <phase reviews, tidy-up, security pass>]   ← only when record-phase.sh printed it
 Summary: <5 lines max — what shipped, what changed, what to verify manually; when the push failed or was skipped with a command, that command is one of the manual steps>
 ```
