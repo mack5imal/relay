@@ -68,14 +68,45 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp" "$tmp".*' EXIT
 #   C <n> <flag> <criterion>              — one per acceptance criterion (flag: "", human, outside)
 extract() {
   awk -v n="$1" '
-    function flag(t,   l) {
-      l = tolower(t)
-      if (l ~ /screenshot|visual|manual|looks right|looks good|by eye|real device|on (a|the|your) (real )?phone|subjective|\/browse/) return "human eye"
+    # The prose and the backticked spans are judged apart (tunez: 6 of 7 flags were words inside
+    # commands — a URL in a grep regex, `vercel deploy` as text DEPLOY.md must contain, the
+    # `curl http://localhost` of a local preview). Prose words flag on their own; a span flags
+    # only when it is a command that reaches outside the repo AND the criterion runs it — not
+    # when the prose just before it says a file contains / holds / names it, or that none runs.
+    function remote_url(s,   u) {
+      u = s; gsub(/https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)/, "", u)
+      return u ~ /https?:\/\//
+    }
+    function outside_cmd(c) {
+      gsub(/^[ \t]+|[ \t]+$/, "", c)
+      while (c ~ /^[a-z_][a-z0-9_]*=[^ ]* /) sub(/^[^ ]+ /, "", c)
+      sub(/^(npx|bunx|sudo) /, "", c)
+      if (c ~ /^(vercel|netlify|heroku|flyctl|fly|wrangler|firebase|surge|amplify)( |$)/) return 1
+      if (c ~ /^(npm|pnpm|yarn|bun|cargo|gem|poetry|dart|flutter) publish( |$)|^twine upload|^git push|^docker push|^gh (release|repo create|pr create)/) return 1
+      if (c ~ /^curl / && remote_url(c)) return 1
+      return 0
+    }
+    function flag(t,   l, s, p, gap, run, verdict, out) {
+      l = tolower(t); p = ""; s = l; out = 0; verdict = 0
+      while (match(s, /`[^`]*`/)) {
+        gap = substr(s, 1, RSTART - 1)
+        p = p gap " "
+        # A list (`a`, `b` and `c`) shares the verdict of its first span.
+        if (gap !~ /^[ \t]*(,|and|or|\/)?[ \t]*(and|or)?[ \t]*$/ || verdict == 0) {
+          run = (gap !~ /(^|[^a-z])(contains?|containing|holds?|still holds|mentions?|documents?|names?|lists?|no|never|without)([ \t]+(the|a|an|no|any))?[ \t]*$/)
+        }
+        verdict = 1
+        if (run && outside_cmd(substr(s, RSTART + 1, RLENGTH - 2))) out = 1
+        s = substr(s, RSTART + RLENGTH)
+      }
+      p = p s
+      if (p ~ /screenshot|visual|manual (check|test|review|inspection|verification|qa|step)|manually (check|verif|inspect|test|review|confirm)|(checked|verified|inspected|tested|reviewed|confirmed) manually|(check|verif|inspect|review|confirm)[a-z]*( [a-z]+)?( [a-z]+)? by hand|looks right|looks good|by eye|real device|on (a|the|your) (real )?phone|subjective|\/browse/) return "human eye"
       # "(^|[^.a-z])" keeps `.vercel` (a gitignore entry) and `netlify.toml`-style paths from matching.
       # "publish" only as a registry release (commit 14: an "atomic publish" of a local file
       # matched), and "account" only as a word ("sidechain accounting" matched).
-      if (l ~ /deploy|(^|[^.a-z])(vercel|netlify|heroku)([^.a-z]|$)|https?:\/\/|<prod-url>|network|whoami|(^|[^a-z])accounts?([^a-z]|$)|app store|git push|remote/) return "outside the repo"
-      if (l ~ /(npm|pnpm|yarn|cargo|gem|poetry|dart|flutter) publish|twine upload|publish(es|ed|ing)? (it |the [a-z]+ )?(to|on) (npm|pypi|crates|the (app|play) store|testflight|a registry|the registry)/) return "outside the repo"
+      if (out) return "outside the repo"
+      if (p ~ /deploy|(^|[^.a-z])(vercel|netlify|heroku)([^.a-z]|$)|<prod-url>|network|whoami|(^|[^a-z])accounts?([^a-z]|$)|app store|git push/ || remote_url(p)) return "outside the repo"
+      if (p ~ /(npm|pnpm|yarn|cargo|gem|poetry|dart|flutter) publish|twine upload|publish(es|ed|ing)? (it |the [a-z]+ )?(to|on) (npm|pypi|crates|the (app|play) store|testflight|a registry|the registry)/) return "outside the repo"
       return ""
     }
     function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }

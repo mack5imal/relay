@@ -202,7 +202,7 @@ Each review, tidy-up and security window appends its own section — `## Review 
 - [plan] <file:line> — <what the fix changed> — changed: plan said "<the line, quoted>" — next: keep it, or revert <commit or file>
 ```
 
-The reason is mandatory. A `[plan]` bullet is a fix a check **kept** although it changed a line relay decided while planning (a `(planner)` out-of-scope item or an assumption — `PHASE-BRIEF.md` §3b); a fix that would change the owner's call is deferred instead, with `contradicts the plan: "<line>"` as its reason. `record-phase.sh` adds a `## Skipped steps` bullet when a check's dispatch returns no report twice. `record-phase.sh --audit` counts the bullets for `RELAY_RUN_COMPLETE`. A run with no `FINDINGS.md` has none.
+The reason is mandatory. A `[plan]` bullet is a fix a check **kept** although it changed a line relay decided while planning (anything tagged `(planner)` — an out-of-scope or constraint bullet, or a value in a success criterion — or an assumption; `PHASE-BRIEF.md` §3b); a fix that would change the owner's call is deferred instead, with `contradicts the plan: "<line>"` as its reason. `record-phase.sh` adds a `## Skipped steps` bullet when a check's dispatch returns no report twice. `record-phase.sh --audit` counts the bullets for `RELAY_RUN_COMPLETE`. A run with no `FINDINGS.md` has none.
 
 ## Audit blocks
 

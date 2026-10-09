@@ -55,8 +55,8 @@ the run and tell us:
 **Why:** {{P1_WHY}}
 
 **Deliverables:**
-- {{P1_FILE_OR_FEATURE_1}}
-- {{P1_FILE_OR_FEATURE_2}}
+- `{{P1_PATH_OR_GLOB_1}}` — {{what it is}}
+- `{{P1_PATH_OR_GLOB_2}}` — {{what it is}}
 
 **Acceptance criteria:**
 - [ ] {{CRIT_1}}
@@ -90,6 +90,9 @@ the run and tell us:
 ## Phase N — Polish & Harden
 
 **Why:** Catch what earlier phases missed because they were focused on shipping behavior. This is how "every aspect is perfect" gets enforced.
+
+**Deliverables:**
+- `{{PN_PATH_OR_GLOB}}` — {{what it is}}   ← or `none — <why>` when the phase only changes files earlier phases created
 
 **Sub-passes (each must produce evidence):**
 

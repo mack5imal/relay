@@ -179,6 +179,55 @@ assert_contains "… with a placeholder warning" "'Review:' still holds a templa
 
 # ---------------------------------------------------------------------------
 echo
+echo "[R] --roadmap: every phase's Deliverables are paths or globs the audit can check"
+# roadmap <name> <phase-1 deliverables block> [<phase-2 deliverables block>]
+roadmap() {
+  {
+    printf '# Roadmap: sample\n\n## Phase map\n\n| # | Phase |\n|---|---|\n| 1 | A |\n\n---\n\n'
+    printf '## Phase 1 — Scaffold\n\n**Why:** start\n\n%s\n\n**Acceptance criteria:**\n- [ ] it builds\n\n---\n\n' "$2"
+    printf '## Phase 2 — Polish\n\n**Why:** finish\n\n%s\n\n**Acceptance criteria:**\n- [ ] it ships\n' "${3:-**Deliverables:**
+- none — changes only files phase 1 created}"
+  } > "$W/$1.md"
+  printf '%s' "$W/$1.md"
+}
+run bash "$VP" --roadmap "$(roadmap good '**Deliverables:**
+- `src/app.ts` — the entry point
+- `test/accuracy/**/*.accuracy.ts`
+- `dir with space/file.md` – a doc')"
+assert_rc "path bullets pass" 0
+assert_contains "… and are counted" "deliverables ok (2 phases, 4 deliverables)" "$OUT"
+run bash "$VP" --roadmap "$(roadmap pointer '**Deliverables:** see `phases/phase-1.md` §Work — Vite project; lint green.')"
+assert_rc "tunez's pointer on the heading line fails" 1
+assert_contains "… naming the heading-line text" "has text on the heading line" "$OUT"
+assert_contains "… and the missing bullets" "Phase 1: **Deliverables:** has no bullets" "$OUT"
+run bash "$VP" --roadmap "$(roadmap bulletptr '**Deliverables:**
+- `phases/phase-1.md` §Work')"
+assert_rc "a bullet pointing at the phase spec fails" 1
+assert_contains "… as a pointer" "points at a plan file instead of naming one" "$OUT"
+run bash "$VP" --roadmap "$(roadmap prose '**Deliverables:**
+- a working login flow')"
+assert_rc "a feature in prose fails" 1
+assert_contains "… asking for a path in backticks" "does not start with a path in backticks" "$OUT"
+run bash "$VP" --roadmap "$(roadmap trailing '**Deliverables:**
+- `src/a.ts` and friends')"
+assert_rc "text after the path that is not a — description fails" 1
+run bash "$VP" --roadmap "$(roadmap nonone '**Deliverables:**
+- none')"
+assert_rc "'none' needs a reason" 1
+run bash "$VP" --roadmap "$(roadmap missing '**Why:** no list here')"
+assert_rc "a phase with no Deliverables list fails" 1
+assert_contains "… naming the phase" "Phase 1: no **Deliverables:** list" "$OUT"
+run bash "$VP" --roadmap "$REPO_ROOT/skills/goal/templates/ROADMAP.md"
+assert_rc "the shipped ROADMAP template passes with placeholder warnings" 0
+assert_contains "… warning on placeholders" "still holds a template placeholder" "$OUT"
+printf '# Roadmap: empty\n\n## Phase map\n' > "$W/nophase.md"
+run bash "$VP" --roadmap "$W/nophase.md"
+assert_rc "a roadmap with no phase sections fails" 1
+run bash "$VP" --roadmap
+assert_rc "--roadmap with no file is a usage error" 2
+
+# ---------------------------------------------------------------------------
+echo
 echo "----------------------------------------"
 printf 'Results: %d passed, %d failed\n' "$pass" "$fail"
 if [ "$fail" -gt 0 ]; then

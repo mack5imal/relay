@@ -66,51 +66,113 @@ TAXONOMY = (
 )
 
 # Shape -> the edges that can apply to it. This mapping IS the relevance filter.
-# Note on `io`: it deliberately does NOT raise `encoding`. Words like "database", "api"
-# and "file" match io very readily, and letting them pull in encoding raised it on criteria
-# with no text handling at all. Encoding belongs to the `text` shape, which triggers on
-# actual string, format and parsing signals.
+# `concurrency` comes only from shapes that genuinely share something: stored data
+# (`stored`) or an explicit simultaneity signal (`concurrent`). A criterion that merely
+# repeats (`repeatable`) or talks to a network (`io`) is asked about running twice, not
+# about races. `io` never raises `encoding` -- that belongs to the `text` shape.
 SHAPE_EDGES = {
     "numeric-range": ("boundary", "adjacency", "precision"),
     "collection":    ("empty", "ordering", "boundary"),
     "text":          ("empty", "encoding", "boundary"),
-    "stateful":      ("idempotency", "concurrency", "ordering"),
-    "io":            ("empty", "idempotency", "concurrency"),
+    "repeatable":    ("idempotency", "ordering"),
+    "stored":        ("idempotency", "concurrency"),
+    "concurrent":    ("concurrency", "ordering"),
+    "io":            ("empty", "idempotency"),
 }
 
 # Deliberately conservative: a shape is claimed only on an explicit signal. Over-claiming a
 # shape raises edges that do not apply, which trains the reader to dismiss rows unread.
+#
+# The tunez run (22 criteria) showed what over-claiming looks like: 136 edges, ~77% of all
+# (criterion, category) pairs, a third of them dismissed as nonsense. The triggers were generic
+# words -- "each", "every", "state", "name", "input", "message", "reads", "dB", "over" /
+# "under" as prepositions, "command" -- and file names inside commands (`latency.json` raised
+# `encoding` on a latency criterion). So: backticked spans are removed before classifying
+# (a command or a file name is how a criterion is checked, not what it is about), and each
+# shape below lists only words that name the shape itself.
+#
+# Each entry is one alternative; WORD entries are matched as whole words, SYMBOL entries
+# anywhere (`\b` never fires around `≤`, `%` or `¢`, which is why `≥ 99%` used to be missed).
+UNIT = r"(?:ms|s|secs?|seconds?|mins?|minutes?|h|hrs?|hours?|days?|kb|mb|gb|tb|px|pt|hz|khz|db|fps|cents?)"
 SHAPE_PATTERNS = {
-    "numeric-range": r"""\b(
-        \d+\s*(ms|s|sec|seconds?|min|minutes?|hours?|days?|kb|mb|gb|px|%|percent)
-        | p\d{2} | under | over | within | at\s+most | at\s+least | no\s+more\s+than
-        | fewer\s+than | greater\s+than | less\s+than | exceeds? | limit | maximum | minimum
-        | max | min | timeout | threshold | count\s+of | size | length\s+of | budget
-        | [<>]=? | ≤ | ≥
-    )\b""",
-    "collection": r"""\b(
-        list | lists | array | arrays | collection | each | every | all\s+of | items? | rows?
-        | entries | records? | results? | set\s+of | batch | queue | multiple | sorted | order(ed|ing)?
-        | pagina(te|ted|tion) | filter(s|ed|ing)?
-    )\b""",
-    "text": r"""\b(
-        string | text | name | label | title | message | copy | input | field | prompt
-        | parse[sd]? | parsing | format(s|ted|ting)? | json | yaml | csv | xml | markdown
-        | path | url | uri | slug | identifier | unicode | emoji | encod(e|ed|ing)
-    )\b""",
-    "stateful": r"""\b(
-        state | stateful | session | cache[sd]? | caching | persist(s|ed|ence)? | store[sd]?
-        | sav(e|es|ed|ing) | toggle[sd]? | retry | retries | resume[sd]? | restart(s|ed)?
-        | re-?run | again | update[sd]? | mutat(e|es|ed|ion) | idempotent | migration
-    )\b""",
-    "io": r"""\b(
-        file | files | directory | disk | writ(e|es|ing|ten) | read(s|ing)? | api | endpoint
-        | request | response | http | https | network | socket | database | db | quer(y|ies)
-        | upload | download | exit\s+code | stdout | stderr | log | fetch | command | subprocess
-    )\b""",
+    "numeric-range": {
+        "word": [
+            r"\d+(?:[.,]\d+)?\s*" + UNIT, r"p\d{2}", r"within", r"at\s+most", r"at\s+least",
+            r"no\s+(?:more|fewer|less)\s+than", r"(?:fewer|more|greater|less)\s+than",
+            r"exceed(?:s|ed|ing)?", r"limits?", r"maximum", r"minimum", r"timeouts?",
+            r"thresholds?", r"budgets?", r"percent(?:age)?", r"exactly\s+(?:one|two|three|\d+)",
+        ],
+        "symbol": [r"\d\s*%", r"\d\s*¢", r"≤", r"≥", r"<=", r">=", r"±", r"[<>]\s*\d"],
+    },
+    "collection": {
+        "word": [
+            r"(?:a|the|its|their|each)\s+list", r"lists?\s+of", r"arrays?", r"collections?",
+            r"queues?", r"batch(?:es)?", r"set\s+of", r"multiple", r"entr(?:y|ies)",
+            r"tables?\s+of", r"per[- ][\w-]+\s+tables?", r"sort(?:s|ed|ing)?", r"order(?:ed|ing)?",
+            r"newest", r"oldest", r"chronological(?:ly)?", r"alphabetical(?:ly)?",
+            r"pagina(?:te|ted|tion)", r"filter(?:s|ed|ing)?", r"timeline", r"all\s+of",
+        ],
+        "symbol": [],
+    },
+    "text": {
+        "word": [
+            r"strings?", r"pars(?:e|es|ed|ing|er|eable|able)", r"unicode", r"emoji",
+            r"(?:en|de)cod(?:e|es|ed|ing)", r"escap(?:e|es|ed|ing)", r"charset", r"utf-?8",
+            r"verbatim", r"wording", r"spell(?:s|ed|ing)?", r"free[- ]text",
+            r"text\s+(?:input|field|box|area)", r"search\s+(?:terms?|box|quer(?:y|ies))",
+            r"titles?", r"file\s?names?", r"user[- ](?:entered|supplied|provided|typed)",
+            r"special\s+characters", r"whitespace", r"case[- ]insensitive(?:ly)?",
+            r"locales?", r"translat(?:e|ed|ion|ions)",
+        ],
+        "symbol": [],
+    },
+    "repeatable": {
+        "word": [
+            r"again", r"twice", r"retr(?:y|ies|ied|ying)", r"resum(?:e|es|ed|ing)",
+            r"restart(?:s|ed|ing)?", r"re-?runs?", r"re-?open(?:s|ed|ing)?",
+            r"re-?load(?:s|ed|ing)?", r"replay(?:s|ed)?", r"idempoten(?:t|cy)",
+            r"double[- ]?(?:taps?|clicks?|submits?)", r"toggle[sd]?", r"undo", r"(?:each|every)\s+time",
+        ],
+        "symbol": [],
+    },
+    "stored": {
+        "word": [
+            r"persist(?:s|ed|ence|ent)?", r"stor(?:e|es|ed|age)", r"sav(?:e|es|ed|ing)",
+            r"cach(?:e|es|ed|ing)", r"precach(?:e|es|ed|ing)", r"databases?", r"indexeddb",
+            r"localstorage", r"migrat(?:e|es|ed|ion|ions)", r"sync(?:s|ed|ing)?",
+            r"upload(?:s|ed|ing)?", r"submit(?:s|ted|ting)?",
+        ],
+        "symbol": [],
+    },
+    "concurrent": {
+        "word": [
+            r"concurren(?:t|tly|cy)", r"simultaneous(?:ly)?", r"at\s+the\s+same\s+time",
+            r"(?:in\s+)?parallel", r"races?", r"race\s+conditions?", r"two\s+tabs",
+            r"multiple\s+(?:tabs|users|devices|windows|clients|processes)", r"at\s+a\s+time",
+            r"double[- ]?(?:taps?|clicks?|submits?)", r"interrupt(?:s|ed|ion|ions)?", r"deadlocks?",
+        ],
+        "symbol": [],
+    },
+    "io": {
+        "word": [
+            r"apis?", r"endpoints?", r"requests?", r"responses?", r"https?", r"network",
+            r"offline", r"online", r"sockets?", r"websockets?", r"fetch(?:es|ed|ing)?",
+            r"download(?:s|ed|ing)?", r"upload(?:s|ed|ing)?", r"quer(?:y|ies)", r"stdout",
+            r"stderr", r"exit\s+codes?", r"subprocess(?:es)?", r"disk",
+            r"(?:writ(?:e|es|ing|ten)|read(?:s|ing)?)\s+(?:to|from)",
+        ],
+        "symbol": [],
+    },
 }
 
-_COMPILED = {k: re.compile(v, re.I | re.X) for k, v in SHAPE_PATTERNS.items()}
+
+def _compile(spec: dict) -> re.Pattern:
+    alts = [r"(?<!\w)(?:" + w + r")(?!\w)" for w in spec["word"]] + spec["symbol"]
+    return re.compile("|".join(alts), re.I)
+
+
+_COMPILED = {k: _compile(v) for k, v in SHAPE_PATTERNS.items()}
+BACKTICK_RE = re.compile(r"`[^`]*`")
 
 # Why each edge is worth a sentence in the spec. Shown in the markdown output so the reader
 # can dispose of a row without going and looking the category up.
@@ -127,8 +189,10 @@ EDGE_PROMPT = {
 
 
 def shapes_of(text: str) -> list[str]:
-    """Every shape whose signal appears in the criterion text. Order follows SHAPE_EDGES."""
-    return [s for s in SHAPE_EDGES if _COMPILED[s].search(text)]
+    """Every shape whose signal appears in the criterion's prose. Order follows SHAPE_EDGES.
+    Backticked spans (commands, file names, identifiers) are removed first."""
+    prose = BACKTICK_RE.sub(" ", text)
+    return [s for s in SHAPE_EDGES if _COMPILED[s].search(prose)]
 
 
 def edges_for(text: str) -> list[str]:

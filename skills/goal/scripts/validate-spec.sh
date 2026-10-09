@@ -19,7 +19,8 @@
 #     `## Design reconciliation` section with a `Reconciled: <n>` line — Stage 2.7e compares the
 #     design against the spec, and zero conflicts must be a recorded result, not an omission
 # Advisories (exit 0): unresolved edges, an empty prohibitions list, a missing interview log,
-# out-of-scope items tagged `(planner)`, and the edge floor itself when python3 is unavailable.
+# out-of-scope items, criterion values and constraints tagged `(planner)`, and the edge floor
+# itself when python3 is unavailable.
 #
 # Exits 0 when the spec is usable, 1 on structural errors, 2 on a usage error.
 
@@ -185,6 +186,20 @@ planner_scope="$(awk '
   END { print n + 0 }
 ' "$body")"
 [[ "$planner_scope" -gt 0 ]] && warn "$planner_scope out-of-scope item(s) were decided by the planner, not the user — list them under 'Scope I decided' in the Stage 6 summary"
+
+# --- planner-chosen values ---------------------------------------------------------------
+# A value nobody gave — a limit or count the planner filled in while settling an edge case — is
+# written into its criterion followed by `(planner)` (tunez: an untagged "no-pitch state within
+# 150 ms" was later put to the owner as "the spec says…"). A constraint the planner added ends
+# in `(planner)` too. Both are relay's call (PHASE-BRIEF.md §3b); count them for Stage 6b.
+planner_values="$(awk '
+  /^##[[:space:]]/ { s = tolower($0); crit = (s ~ /^##[[:space:]]+success criteria/); cons = (s ~ /^##[[:space:]]+constraints/); next }
+  /\{\{/ { next }
+  crit && /^[[:space:]]*-/ { line = $0; while ((i = index(line, "(planner)")) > 0) { n++; line = substr(line, i + 9) } }
+  cons && /^[[:space:]]*-/ && /\(planner\)[[:space:]]*$/ { n++ }
+  END { print n + 0 }
+' "$body")"
+[[ "$planner_values" -gt 0 ]] && warn "$planner_values value(s) in the success criteria or constraints were chosen by the planner, not the user — list each under 'Numbers I chose' in the Stage 6 summary"
 
 # --- edge floor --------------------------------------------------------------------------
 # The probe's output is a floor: every edge it raises for the spec's *current* criteria needs a

@@ -495,6 +495,14 @@ input is a bounded enum"; silence is not a disposition), or record it `unresolve
 inherits it as a known gap. If it warns that nothing was probed, that is a parsing or authoring
 problem — not a clean bill of health.
 
+**A value you choose is tagged `(planner)`.** Settling an edge often needs a number nobody gave
+you — a time limit, a count, a size. Write it into the criterion followed by `(planner)`:
+"shows the no-pitch state within 150 ms (planner)". It is your call, not the owner's: Stage 6b
+lists it under *Numbers I chose*, and a check after the build may change it (flagged in the run's
+last message), exactly like a `(planner)` out-of-scope item. Untagged, it reads as something the
+owner agreed — tunez's 150 ms later clashed with the design's 250 ms and was put to the owner as
+"the spec says…". A value the owner gave, in an answer or the original request, is never tagged.
+
 The floor is **enforced**: `validate-spec.sh` re-probes the spec's *current* criteria and fails on
 any raised edge with no row, printing the row to paste. Rewording a criterion after probing can
 raise new edges — that is what the re-probe catches. Every gap has an honest answer (`unresolved`
@@ -529,8 +537,9 @@ the `S<k>` success criteria (each with `Current:` / `Target:` / `Acceptance:`), 
 prohibitions, assumptions, the ambiguity report, and the interview log (with each round's scores).
 
 **Tag planner-decided scope.** An `## Out of scope` item the user chose in the interview stays as
-written; one you decided because nobody asked gets a trailing `(planner)`. Those are assumptions
-in disguise, and Stage 6 lists them for correction. The tag is for what *nobody asked*: a
+written; one you decided because nobody asked gets a trailing `(planner)` — and so does a
+`## Constraints` bullet you added, and a value you chose inside a success criterion (the edge
+probe above). Those are assumptions in disguise, and Stage 6 lists them for correction. The tag is for what *nobody asked*: a
 constraint or answer the owner gave is never loosened and re-tagged `(planner)` — that is a
 change to what they settled, and it is asked (Operating principles, "ask before you change what
 the owner settled").
@@ -848,7 +857,7 @@ never asked for; Stage 6a's intent-coverage check will flag it.
 Each phase has:
 - **Name** (5 words max, action-first: "Build auth foundation")
 - **Why** (1 sentence)
-- **Deliverables** (concrete files/features that will exist when done)
+- **Deliverables** (the files that will exist or change when done — each a repo path or glob, which the audit checks against the repository)
 - **Acceptance criteria** (5–10 measurable items)
 - **Mandatory commands** (build, typecheck, lint, test that must pass)
 - **Evidence required** (what the agent must record in the phase's evidence file to prove completion)
@@ -877,7 +886,7 @@ principles) — the tunez planner made both of those changes here as "one more s
 
 Three files, all under `$RELAY_ROOT/`:
 
-1. **`ROADMAP.md`** — the plan (template at `$RELAY_DIR/templates/ROADMAP.md`).
+1. **`ROADMAP.md`** — the plan (template at `$RELAY_DIR/templates/ROADMAP.md`). Each phase's `**Deliverables:**` is a bullet list, one `` `path/or/glob` — what it is `` per line (`none — <why>` for a phase that only changes earlier phases' files) — never a pointer to the phase spec: the audit runs `repo-state.sh deliverable` on each path, and tunez's "see `phases/phase-N.md` §Work" lines left it rebuilding 146 paths from prose. Check them with `bash $RELAY_DIR/scripts/validate-phase.sh --roadmap "$RELAY_ROOT/ROADMAP.md"`.
 2. **`STATE.md`** — live progress file the orchestrator records into after each report (via `record-phase.sh`) (template at `$RELAY_DIR/templates/STATE.md`; if Stage 2.7 already created it, fill that copy in). Fill `Memory dir:` with `$MEM_DIR` from Stage 0 — the `/goal` session has no other way to find where memory writeback goes. Fill `Cleanup:` (`on`, or `off — <reason>`) and `Security pass:` (`yes`, or `skip — <reason>`) from Stage 4 — `record-phase.sh` routes the run by them, and a missing field means the step never runs. Fill `Push:` (`on`, or `off — <reason>`) too — `relay-git.sh` reads it, and a missing field means the old push-after-the-audit behaviour, not off.
 3. **`phases/phase-N.md`** — one work-spec file per phase (template at `$RELAY_DIR/templates/phase-goal.txt`, renamed conceptually to "phase spec"). **Any length** — these are read from disk by the executor, not passed to `/goal`, so no char budget.
 
@@ -945,7 +954,7 @@ Plan-time is the cheapest moment to catch the most expensive bugs (vague criteri
 **Output:**
 
 - If clean: record `Self-critique: clean.` and proceed.
-- If findings: list 1–4 specific findings (no padding). An unmapped spec criterion is a plan bug: add or widen a phase before printing the summary. For falsifiability issues, **rewrite the offending criteria in place** in the affected `phase-N.md` files and `ROADMAP.md` before printing the summary. Re-run `validate-phase.sh` on any touched spec. Surface the rewrites in the Stage 6 summary so the user sees the post-critique version, not the pre-critique one.
+- If findings: list 1–4 specific findings (no padding). An unmapped spec criterion is a plan bug: add or widen a phase before printing the summary. For falsifiability issues, **rewrite the offending criteria in place** in the affected `phase-N.md` files and `ROADMAP.md` before printing the summary. Re-run `validate-phase.sh` on any touched spec (and `--roadmap` when `ROADMAP.md` changed). Surface the rewrites in the Stage 6 summary so the user sees the post-critique version, not the pre-critique one.
 
 Honesty check: this pass must produce findings *or* a "clean" verdict per run. If it silently always says "clean" on real plans, it's theater and we remove it in the next release.
 
@@ -1029,8 +1038,13 @@ Stack: <stack> · pkg: <pm> · build/test/lint: <commands>
 Scope I decided (not asked — correct any):
   - <each `(planner)` item from SPEC.md's Out of scope>
   (or: "none — every exclusion was your call")
-  (the checks after the build may change these and the key assumptions to fix a real flaw — the
-   run's last message says so; what you chose, they never override)
+
+Numbers I chose (not asked — correct any):
+  - S<k>: <the value as written, in plain words — e.g. "the note clears within 150 ms of silence">
+  - Constraint: <each `(planner)` constraint>
+  (or: "none — every number in the criteria came from you"; the count is validate-spec.sh's)
+  (the checks after the build may change these, the scope above and the key assumptions to fix a
+   real flaw — the run's last message says so; what you chose, they never override)
 
 Prohibited (the run must not do these):
   - <each kept prohibition from SPEC.md, one line>
@@ -1133,7 +1147,7 @@ Slash commands fire **only from user input** — agent message text is never par
    cp "$RELAY_DIR/scripts/build-graph.sh" "$RELAY_DIR/scripts/map-slice.sh" "$RELAY_DIR/scripts/map-slice.py" "$RELAY_ROOT/"
    ```
    `PROTOCOL.md` is the manual the executing agent reads at the start of the `/goal` session; the `sed` substitutes the concrete run root for every `{{RUN_ROOT}}` placeholder, so the agent reads `$RELAY_ROOT/STATE.md` (etc.), never a placeholder. `MARKERS.md` carries the exact transcript block formats — `references/` is never copied into a run, so this is the only copy the `/goal` session can read. `PHASE-BRIEF.md` is the subagent contract; `assemble-brief.sh` expands it per phase (spec + carryover + map slice + state + formats) into `phases/phase-N.brief.md`, which the orchestrator dispatches without reading; `record-phase.sh` validates each subagent's report file and applies every `STATE.md` change for its outcome, so the orchestrator never hand-edits `STATE.md`. `resume-line.sh` prints the ready-to-paste `/goal` that restarts a blocked run from the phases that remain — `PROTOCOL.md` calls it after a handoff so a stopped run is not lost. `recover.sh` is what a reopened session runs after an interruption: it tells a window that died with the old process from one still running, and settles it (`PROTOCOL.md` "After an interruption"). `repo-state.sh` is the complete-working-tree comparison helper the cleanliness + deliverable checks invoke (strategy in `references/repo-state-comparison.md`); `run-logged.sh` runs each mandatory command with its full output written to `<run-root>/logs/`, printing only the exit code and a short tail. `relay-git.sh` is how each phase, fix, review-fix, tidy-up, security-fix and audit-fix subagent commits its work once it passes, and how the orchestrator pushes the run branch once after the audit (only a branch relay created, only with `Push: on`; off prints the command instead; a failed push is reported, never a blocker). `build-graph.sh`, `map-slice.sh`, and `map-slice.py` let the executor refresh the code graph and read each phase's map slice. `check-design.sh --verify` is the design-fidelity check the S-criteria from Stage 2.7 name (copied on every run; unused without a design package). The helpers take paths as arguments, so none needs substitution.
-3. Verify each `$RELAY_ROOT/phases/phase-N.md` exists; run `bash $RELAY_DIR/scripts/validate-phase.sh "$RELAY_ROOT/phases/phase-<N>.md"` on each. Run `bash $RELAY_DIR/scripts/check-seeds.sh "$RELAY_ROOT"` once — a Stage 6 revision can renumber phases or rename a type a later phase seeds. Confirm `STATE.md` carries `Cleanup:` (`on` or `off — <reason>`), `Security pass:` (`yes` or `skip — <reason>`) and `Push:` (`on` or `off — <reason>`), with no placeholder: `grep -E '^\*\*(Cleanup|Security pass|Push):\*\* (on|off —|yes|skip —)' "$RELAY_ROOT/STATE.md"` must print three lines. Re-run `bash $RELAY_DIR/scripts/validate-spec.sh "$RELAY_ROOT/SPEC.md"` too — Stage 6 revisions can edit the spec, and this is the last point before it becomes the audit's rubric. A ❌ here blocks dispatch.
+3. Verify each `$RELAY_ROOT/phases/phase-N.md` exists; run `bash $RELAY_DIR/scripts/validate-phase.sh "$RELAY_ROOT/phases/phase-<N>.md"` on each, and `bash $RELAY_DIR/scripts/validate-phase.sh --roadmap "$RELAY_ROOT/ROADMAP.md"` once. Run `bash $RELAY_DIR/scripts/check-seeds.sh "$RELAY_ROOT"` once — a Stage 6 revision can renumber phases or rename a type a later phase seeds. Confirm `STATE.md` carries `Cleanup:` (`on` or `off — <reason>`), `Security pass:` (`yes` or `skip — <reason>`) and `Push:` (`on` or `off — <reason>`), with no placeholder: `grep -E '^\*\*(Cleanup|Security pass|Push):\*\* (on|off —|yes|skip —)' "$RELAY_ROOT/STATE.md"` must print three lines. Re-run `bash $RELAY_DIR/scripts/validate-spec.sh "$RELAY_ROOT/SPEC.md"` too — Stage 6 revisions can edit the spec, and this is the last point before it becomes the audit's rubric. A ❌ here blocks dispatch.
 4. Print a fenced code block with the **ready-to-paste `/goal` command**. **Substitute the literal value of `$RELAY_ROOT` for every `<run-root>` below** (e.g. `.relay/add-dark-mode-Ab3Kx9`) — the pasted line must contain the real directory, not the variable or the `<run-root>` placeholder. The condition is short, instructional but measurable, and well under the 4000-char `/goal` argument limit:
 
 ````
@@ -1217,7 +1231,7 @@ To change the orchestrator, edit `templates/PROTOCOL.md`; to change what a subag
 - `scripts/detect-stack.sh` — identifies language, package manager, framework, build/test/lint commands (brownfield)
 - `scripts/detect-env.sh` — greenfield environment recon
 - `scripts/summarize-repo.sh` — compressed repo map (brownfield)
-- `scripts/validate-phase.sh` — checks a phase spec has the required RELAY_PHASE_START marker, a non-empty acceptance criteria section, at least one mandatory command, and a header criterion count matching its bullets; warns on a missing `Map seeds:` / `Estimated files:` / `## Exemplars`, on unreplaced placeholders, and when `Estimated files:` exceeds the sizing threshold (12) without a stated reason
+- `scripts/validate-phase.sh` — with `--roadmap`, checks every phase's `**Deliverables:**` in `ROADMAP.md` is a list of backticked paths or globs (or `none — <why>`); otherwise checks a phase spec has the required RELAY_PHASE_START marker, a non-empty acceptance criteria section, at least one mandatory command, and a header criterion count matching its bullets; warns on a missing `Map seeds:` / `Estimated files:` / `## Exemplars`, on unreplaced placeholders, and when `Estimated files:` exceeds the sizing threshold (12) without a stated reason
 - `scripts/validate-spec.sh` — the Stage 2.5 content gate: required sections, an `Acceptance:` line and a measurable predicate on every success criterion, no edge dismissed without a reason, and every edge the probe raises given a row
 - `scripts/edge-probe.py` — classifies each success criterion by shape and raises only the edge categories that apply to it (closed 8-item taxonomy); a floor to union with, never to narrow. `--check <SPEC.md>` enforces the floor (called by `validate-spec.sh`)
 - `scripts/build-rubric.sh` — compiles every phase's acceptance criteria and mandatory commands into `<run-root>/RUBRIC.md` and flags the ones worth a human look (Stage 6; planner-only)

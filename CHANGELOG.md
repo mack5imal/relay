@@ -21,6 +21,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Fewer, better edge-case prompts.** The planner's edge probe raised "unusual situation"
+  prompts from generic words ("each", "state", "name") and from file names inside commands —
+  136 prompts on tunez's 22 criteria, a third of them nonsense like "unusual characters" on a
+  latency target because of `latency.json`. It now reads only the criterion's prose and only
+  words that name the situation: 78 on the same criteria, with the real ones it used to miss
+  (`≥ 99%`, `±35¢`, sharp/flat note spelling) now raised.
+- **The rubric flags only what needs you.** "Worth your eye" flagged commands quoted inside a
+  criterion — a URL in a `grep` pattern, `vercel deploy` as text a doc must contain, a `curl` to
+  `localhost` — and "stopped manually" in an automated test. Commands now flag only when the
+  criterion runs them and they leave the repository (tunez: 7 flags, all false → 0).
+- **Numbers the planner picks are marked as its own.** A limit or count the planner fills in
+  while settling an edge case is written `within 150 ms (planner)` and listed in the plan review
+  under "Numbers I chose". Untagged, it read as something you had agreed, and the checks after
+  the build could never change it.
+- **Each phase's deliverables are file paths.** The plan's `Deliverables:` lists must name the
+  files or globs a phase creates (`validate-phase.sh --roadmap`), so the audit can check each
+  one; tunez's plan pointed at the phase specs instead, and the audit rebuilt 146 paths from
+  prose.
+
 - **The handoff no longer tells you to exit the planning session.** It says to start a new
   session in the same folder and paste the `/goal` line there; the planning session can stay
   open for reference or be closed.
