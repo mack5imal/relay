@@ -530,6 +530,9 @@ exit 0
 GH
 chmod +x "$GHBIN/gh"
 export GH_STUB_LOG="$W/gh.log"
+# init --save commits in a brand-new repository, so no per-repo identity exists yet: give the
+# commits one (CI runners have no global identity, and Linux git cannot guess one).
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.com GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.com
 # NOGH_PATH — $PATH with gh hidden. A directory holding gh is replaced by a mirror of its other
 # entries, not dropped: on Linux gh sits in /usr/bin beside bash and git.
 NOGH_PATH=""; k=0
@@ -610,7 +613,8 @@ rgh init "$RUN" --save
 assert_contains "--save in an empty folder" "nothing to save" "$OUT"
 R="$W/st-noid"; mkdir -p "$R/$RUN"; printf 'a\n' > "$R/a.txt"
 printf '[user]\n\tuseConfigOnly = true\n' > "$W/noid.gitconfig"
-OUT="$(cd "$R" && GIT_CONFIG_GLOBAL="$W/noid.gitconfig" GIT_CONFIG_NOSYSTEM=1 bash "$RG" init "$RUN" --save 2>&1)"; RC=$?
+OUT="$(cd "$R" && env -u GIT_AUTHOR_NAME -u GIT_AUTHOR_EMAIL -u GIT_COMMITTER_NAME -u GIT_COMMITTER_EMAIL \
+  GIT_CONFIG_GLOBAL="$W/noid.gitconfig" GIT_CONFIG_NOSYSTEM=1 bash "$RG" init "$RUN" --save 2>&1)"; RC=$?
 assert_rc "no git identity → 1" 1
 assert_contains "says how to set it" "git has no name/email — run: ! git config --global user.name" "$OUT"
 assert_eq "… with nothing left staged" "" "$(git -C "$R" diff --cached --name-only 2>/dev/null)"
