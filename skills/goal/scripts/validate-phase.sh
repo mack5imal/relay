@@ -127,9 +127,9 @@ if [[ -z "$review_line" ]]; then
   errors=$((errors + 1))
 elif [[ "$review_val" == *'{{'* ]]; then
   echo "⚠️  $f: 'Review:' still holds a template placeholder — write 'yes' or 'skip — <reason>'" >&2
-elif printf '%s' "$review_val" | grep -qiE '^yes$'; then
+elif printf '%s' "$review_val" | grep -iE '^yes$' >/dev/null; then
   :
-elif printf '%s' "$review_val" | grep -qiE '^skip([[:space:]]|$|—|-|:)'; then
+elif printf '%s' "$review_val" | grep -iE '^skip([[:space:]]|$|—|-|:)' >/dev/null; then
   reason="$(printf '%s' "$review_val" | sed -E 's/^[Ss][Kk][Ii][Pp][[:space:]]*//; s/^(—|--|-|:)[[:space:]]*//')"
   if [[ -z "$reason" ]]; then
     echo "❌ $f: 'Review: skip' needs a reason — 'Review: skip — <why this phase needs no review>'" >&2

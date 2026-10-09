@@ -180,6 +180,23 @@ assert_rc "no phases/ exits 2" 2
 
 # ---------------------------------------------------------------------------
 echo
+echo "[11] A large earlier spec that names the seed near the top still resolves (pipefail + grep -q)"
+# `grep -v … spec | grep -q` let grep -q exit at its first match; the producer, still writing past
+# the pipe buffer, died of SIGPIPE and pipefail turned "found" into "unresolved".
+newroot bigspec
+phase 1 none "- create \`TrackStore\` in Sources/Model/
+$(awk 'BEGIN { for (i = 0; i < 4000; i++) print "- padding line " i " to push the spec past the pipe buffer" }')"
+phase 2 TrackStore '- use the model'
+big_ok=0
+for i in 1 2 3 4 5; do
+  run env PATH="$WITH" bash "$CS" "$R"
+  [ "$RC" -eq 0 ] && big_ok=$((big_ok + 1))
+done
+if [ "$(wc -c < "$R/phases/phase-1.md")" -gt 131072 ]; then ok "the earlier spec is past the pipe buffer"; else no "the earlier spec is past the pipe buffer" "$(wc -c < "$R/phases/phase-1.md") bytes"; fi
+if [ "$big_ok" -eq 5 ]; then ok "the seed resolves on 5 of 5 runs"; else no "the seed resolves on 5 of 5 runs" "resolved $big_ok of 5 (last: $OUT)"; fi
+
+# ---------------------------------------------------------------------------
+echo
 echo "----------------------------------------"
 printf 'Results: %d passed, %d failed\n' "$pass" "$fail"
 if [ "$fail" -gt 0 ]; then

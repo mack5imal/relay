@@ -77,12 +77,12 @@ for ((i = 0; i < ${#specs[@]}; i++)); do
   fi
 
   for s in "${seeds[@]}"; do
-    if [[ $queryable -eq 1 ]] && ! printf '%s\n' "$slice" | grep -qxF -- "### $s - no match"; then
+    if [[ $queryable -eq 1 ]] && ! printf '%s\n' "$slice" | grep -xF -- "### $s - no match" >/dev/null; then
       ok_graph=$((ok_graph + 1)); continue
     fi
     found=""
     for ((j = 0; j < i; j++)); do
-      if grep -vE '^Map seeds:' "${specs[$j]}" | grep -qwF -- "$s"; then
+      if grep -vE '^Map seeds:' "${specs[$j]}" | grep -wF -- "$s" >/dev/null; then
         found="$(basename "${specs[$j]}" .md)"; break
       fi
     done

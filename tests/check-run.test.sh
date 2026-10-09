@@ -91,7 +91,7 @@ run() {
 |---|-------|--------|---------|-----------|-------|
 EOF
   python3 - "$d/t.jsonl" "$3" <<'PY'
-import json, sys
+import json, os, sys
 out, push = sys.argv[1], sys.argv[2] in ("yes", "cd")
 def a(*items): return {"type": "assistant", "message": {"content": list(items)}}
 recs = [{"type": "user", "message": {"content": "go"}},
@@ -102,7 +102,10 @@ if sys.argv[2] == "cd":  # the commit 14 runs' first command
 if push:
     recs.append(a({"type": "tool_use", "id": "t1", "name": "Bash",
                    "input": {"command": "bash run/relay-git.sh push run"}}))
-recs.append(a({"type": "text", "text": "RELAY_RUN_COMPLETE\nPush: push: relay/x → origin (1 commits)"}))
+for i, c in enumerate(filter(None, os.environ.get("EXTRA_CMDS", "").split("\n"))):
+    recs.append(a({"type": "tool_use", "id": f"x{i}", "name": "Bash", "input": {"command": c}}))
+line = os.environ.get("PUSHLINE", "Push: push: relay/x → origin (1 commits)")
+recs.append(a({"type": "text", "text": "RELAY_RUN_COMPLETE\n" + line}))
 with open(out, "w") as f:
     for r in recs: f.write(json.dumps(r) + "\n")
 PY
@@ -126,6 +129,22 @@ assert_contains "Push: off, no push step → warning only" "push is off; its ski
 assert_missing "… not a violation" "✗ RELAY_RUN_COMPLETE without" "$OUT"
 run pushoffran "relay/x (created by relay)" yes "off — default"
 assert_missing "Push: off, push step ran → nothing to flag" "without running relay-git.sh push" "$OUT"
+
+echo "the push line: verbatim, no doubled label (old runs' 'Push: push:' still pass)"
+run oldpushline "relay/x (created by relay)" yes
+assert_missing "'Push: push: …' (pre-fix runs) → no warning" "RELAY_RUN_COMPLETE has no" "$OUT"
+PUSHLINE='push: relay/x → origin (1 commits)' run barepushline "relay/x (created by relay)" yes
+assert_missing "bare 'push: …' → no warning" "RELAY_RUN_COMPLETE has no" "$OUT"
+PUSHLINE='All 1 phases complete.' run nopushline "relay/x (created by relay)" yes
+assert_contains "no push line at all → warning" "RELAY_RUN_COMPLETE has no push line" "$OUT"
+
+echo "STATE.md: read once at the start, then the Notable events section at completion"
+EXTRA_CMDS=$'cat run/STATE.md\nawk \'/^## Notable events/{f=1; print; next} f && /^## /{exit} f\' run/STATE.md' run stateawk "no-git" no
+assert_missing "the awk events read (current PROTOCOL.md) → no re-read warning" "reads STATE.md again" "$OUT"
+EXTRA_CMDS=$'cat run/STATE.md\ngrep -A 40 \'^## Notable events\' run/STATE.md' run stategrep "no-git" no
+assert_missing "the grep -A 40 events read (older runs) → no re-read warning" "reads STATE.md again" "$OUT"
+EXTRA_CMDS=$'cat run/STATE.md\ncat run/STATE.md' run statetwice "no-git" no
+assert_contains "a second whole read → warning" "reads STATE.md again" "$OUT"
 
 echo "after an interruption: recover.sh first (run roots that carry it)"
 # irun <name> <variant> [recover-in-root] — a transcript: dispatch phase 1, the session stops, a

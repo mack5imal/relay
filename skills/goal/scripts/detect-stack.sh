@@ -24,7 +24,7 @@ if [[ -f package.json ]]; then
     fi
     # framework detection
     for fw in next react vue svelte solid astro nuxt remix express fastify nestjs hono; do
-      if echo "$deps" | grep -qx "$fw"; then
+      if echo "$deps" | grep -x "$fw" >/dev/null; then
         echo "  - Framework: **$fw**"
       fi
     done
@@ -114,7 +114,7 @@ echo "## Test / lint heuristics"
 if [[ -f package.json ]] && command -v jq >/dev/null 2>&1; then
   scripts=$(jq -r '.scripts // {} | keys[]' package.json 2>/dev/null)
   for key in build typecheck "type-check" test lint check ci dev start; do
-    if echo "$scripts" | grep -qx "$key"; then
+    if echo "$scripts" | grep -x "$key" >/dev/null; then
       echo "- Has script: \`$key\`"
     fi
   done

@@ -160,8 +160,8 @@ push_remote() {
   rs="$(git remote 2>/dev/null)"
   # STATE.md's "**Push:** on — to <remote>" (Stage 1's answer when several remotes have no origin)
   want="$(state_field Push | sed -n -E 's/^on[[:space:]]+—[[:space:]]+to[[:space:]]+([^[:space:]]+).*$/\1/p')"
-  if [ -n "$want" ] && printf '%s\n' "$rs" | grep -qxF -- "$want"; then printf '%s' "$want"; return; fi
-  if printf '%s\n' "$rs" | grep -qx origin; then printf 'origin'; return; fi
+  if [ -n "$want" ] && printf '%s\n' "$rs" | grep -xF -- "$want" >/dev/null; then printf '%s' "$want"; return; fi
+  if printf '%s\n' "$rs" | grep -x origin >/dev/null; then printf 'origin'; return; fi
   n="$(printf '%s' "$rs" | grep -c . || true)"
   [ "$n" -eq 1 ] && printf '%s' "$rs"
 }
@@ -328,11 +328,15 @@ commit)
   fi
 
   if [ -n "$phase" ]; then
-    name="$(awk -v p="$phase" -F'|' '$2 ~ ("^ *" p " *$") { gsub(/^ +| +$/, "", $3); print $3; exit }' "$runroot/STATE.md" 2>/dev/null)"
+    # The phase spec's `Phase:` line names the phase; the STATE.md row is only a fallback. A phase
+    # renamed mid-run keeps its old row name (tunez: phase 18 committed as "Deploy a Vercel
+    # preview" after the deploy was taken out of its spec).
+    name="$(grep -m1 -E '^[[:space:]]*Phase:[[:space:]]*[0-9]+' "$runroot/phases/phase-$phase.md" 2>/dev/null \
+      | sed -E 's/^[[:space:]]*Phase:[[:space:]]*[0-9]+([[:space:]]+of[[:space:]]+[0-9]+)?[[:space:]]*[—-]+[[:space:]]*//; s/[[:space:]]+$//')"
     if [ -z "$name" ] || [[ "$name" == *"{{"* ]]; then
-      name="$(grep -m1 -E '^[[:space:]]*Phase:[[:space:]]*[0-9]+' "$runroot/phases/phase-$phase.md" 2>/dev/null \
-        | sed -E 's/^[[:space:]]*Phase:[[:space:]]*[0-9]+([[:space:]]+of[[:space:]]+[0-9]+)?[[:space:]]*[—-]+[[:space:]]*//; s/[[:space:]]+$//')"
+      name="$(awk -v p="$phase" -F'|' '$2 ~ ("^ *" p " *$") { gsub(/^ +| +$/, "", $3); print $3; exit }' "$runroot/STATE.md" 2>/dev/null)"
     fi
+    [[ "$name" == *"{{"* ]] && name=""
     subject="relay: phase $phase — ${name:-phase $phase}"
     trailer="Relay-Phase: $phase"
     [ "$kind" = "fix" ] && subject="$subject (fix)"
@@ -373,7 +377,7 @@ commit)
 
   if git diff --cached --quiet 2>/dev/null && has_head; then
     body="$(git log -1 --format=%B HEAD 2>/dev/null)"
-    if printf '%s\n' "$body" | grep -qxF "Relay-Run: $runid" && printf '%s\n' "$body" | grep -qxF "$trailer"; then
+    if printf '%s\n' "$body" | grep -xF "Relay-Run: $runid" >/dev/null && printf '%s\n' "$body" | grep -xF "$trailer" >/dev/null; then
       echo "commit: $(git rev-parse --short HEAD) (already committed) $(git log -1 --format=%s HEAD)"
     else
       echo "commit: none — no changes since the last commit"
@@ -484,7 +488,7 @@ setup)
     echo "files: $n"
     left="$(printf '%s\n' "$entries" | secret_or_generated)"
     printf '%s\n' "$entries" | grep . | head -10 | while IFS= read -r e; do
-      if printf '%s\n' "$left" | grep -qxF -- "$e"; then echo "  $e   (left out — secret or generated)"; else echo "  $e"; fi
+      if printf '%s\n' "$left" | grep -xF -- "$e" >/dev/null; then echo "  $e   (left out — secret or generated)"; else echo "  $e"; fi
     done
     [ "$n" -gt 10 ] && echo "  … and $((n - 10)) more"
   fi

@@ -164,6 +164,10 @@ S="$(cat "$w/run/STATE.md")"
 assert_contains "current phase audit" "**Current phase:** audit" "$S"
 assert_contains "probe + note in event" "Phase 3 complete: 3/3 criteria pass after one probe retry, 4 files changed — commit c03f71b" "$S"
 assert_contains "none memory not carried" "- (none yet)" "$S"
+assert_contains "the passed probe retry is in the failure log" "- Phase 3 (Phase name 3): C2 lint — attempt 1 failed — passed after the probe retry" "$S"
+assert_missing "… replacing the template's placeholder line" "{{WHAT_FAILED}}" "$S"
+run bash "$RP" "$w/run" 3 --note "commit c03f71b"
+assert_eq "recording it again keeps one failure-log line" "1" "$(grep -c 'passed after the probe retry' "$w/run/STATE.md")"
 rm -rf "$w"
 
 # ---------------------------------------------------------------------------

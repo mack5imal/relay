@@ -131,11 +131,11 @@ while IFS=$'\t' read -r slug status; do
     err "$slug: '## Findings' has no bullets"
   else
     while IFS= read -r b; do
-      if printf '%s' "$b" | grep -qiE 'unverified \(training knowledge[^)]*\)'; then
+      if printf '%s' "$b" | grep -iE 'unverified \(training knowledge[^)]*\)' >/dev/null; then
         unverified=$((unverified + 1))
-      elif printf '%s' "$b" | grep -qiE 'https?://|derived:'; then
+      elif printf '%s' "$b" | grep -iE 'https?://|derived:' >/dev/null; then
         :
-      elif printf '%s' "$b" | grep -qiE 'same source|ibid'; then
+      elif printf '%s' "$b" | grep -iE 'same source|ibid' >/dev/null; then
         err "$slug: finding cites 'same source' — repeat the URL; a back-reference can't be checked: $(printf '%s' "$b" | sed -E 's/^[[:space:]]*[-*][[:space:]]*//' | cut -c1-80)"
       else
         err "$slug: finding with no source — cite a URL, mark it 'derived: <from what>', or mark it 'unverified (training knowledge)': $(printf '%s' "$b" | sed -E 's/^[[:space:]]*[-*][[:space:]]*//' | cut -c1-80)"
@@ -147,7 +147,7 @@ while IFS=$'\t' read -r slug status; do
   [[ -n "$imp" ]] || err "$slug: '## Implications for this plan' has no bullets — research the plan cannot use is not done"
 
   conf="$(section "$f" "Confidence" | sed '/^[[:space:]]*$/d' | head -1)"
-  printf '%s' "$conf" | grep -qiE '^[[:space:]]*(high|medium|low)\b' \
+  printf '%s' "$conf" | grep -iE '^[[:space:]]*(high|medium|low)\b' >/dev/null \
     || err "$slug: '## Confidence' must start with high, medium or low"
 
   cline="$(grep -m1 -E '^Contradicts:' "$f" || true)"
