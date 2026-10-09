@@ -110,7 +110,13 @@ fidelity script of its own. Source is every tracked and untracked file outside `
    web manifest, `<meta name="theme-color">` — are **generated from the theme file** and listed
    with `--allow`; never hand-copied (tunez needed `#0D0F12` in both).
 4. **Copy matches** — every `## Copy` string appears verbatim outside `design/`; `{name}`
-   placeholders split it into fragments, each of which must appear. A one-word fragment must
+   placeholders split it into fragments, each of which must appear. Code comments are stripped
+   first — tunez's builders satisfied strings with JSDoc lines — but tests count: copy the app
+   assembles from parts (a number in the middle, a bold word) is often whole only in the test
+   that checks the screen shows it, and skipping tests failed 39 strings tunez really shows.
+   `(e.g. …)` examples on a copy bullet (`` `{key}` (e.g. `F major`) ``) are sample values, not
+   wording, and are not checked. Each content phase checks its own screens with `--screen <id>`;
+   the run-wide check stays on the last screen phase, Polish & Harden and the audit. A one-word fragment must
    match as a whole word, so `Close` inside `onClose` does not count. That is still only a
    presence check, and the criterion says so: whether "Trends" renders where the design puts it
    is left to the post-run screen comparison (5). A stricter check, requiring each string as a
@@ -182,6 +188,21 @@ tool) warns, and every conflict is asked individually, as before.
   `design/HANDOFF.md §overlay`, `design/screens/overlay.png` — alongside code exemplars. Never
   `design/source/`, never the whole `HANDOFF.md` when one section will do.
 - **Screenshots in a phase.** A subagent opens a screen's PNG only for the screen it is building.
+- **Copy per screen.** A content phase gates its screens' copy with `--verify copy --screen <id>`
+  (`phase-design.md`, UI redesign shape).
+
+## Pictures vs the Copy list
+
+The designer hands back both the screen pictures and the typed `## Copy` list, and the build is
+held only to the list — relay never reads text out of an image. They usually agree; when they
+drift (a string left off the list, wording changed on screen after the list was written),
+nothing in the build would notice. So Stage 2.7d compares them once, while the owner is still
+there: one subagent opens every `screens/*.png` (keeping the images — 60 on tunez — out of the planner's window)
+and reports, per screen, visible text missing from the list and wording that differs. Sample
+data in a picture (names, numbers, dates) is never required copy. The owner picks picture or list
+for each difference; the planner corrects `## Copy`, re-commits `design/` and only then drafts
+the copy criterion, whose count depends on the list. Rejected: OCR in `check-design.sh` — a new
+dependency, and a misread string would fail a correct build at night with nobody to ask.
 
 ## Edge cases
 

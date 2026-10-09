@@ -759,6 +759,30 @@ the user and wait. Every `check-design.sh` ❌ names its fix (a missing screen P
 exist; carry them to the Stage 6 summary. No deviations list means step e asks every conflict
 individually.
 
+**Pictures vs the Copy list.** The designer typed `## Copy` and drew the pictures separately, and
+the build is held only to the list. When the package has a `## Copy` section, compare them once
+now — before drafting the criteria, whose copy count depends on the list. Dispatch one
+`general-purpose` subagent (it keeps the images out of your window) with this prompt:
+
+> Compare a design package's screen pictures with its typed copy list. Do not edit any file.
+> Read `design/HANDOFF.md`'s `## Copy` section only (`grep -n '^## ' design/HANDOFF.md`, then
+> read that range). Open each `design/screens/*.png` once; `<id>--<state>.png` belongs to screen
+> `<id>`. For each screen, list (1) text visible in its pictures that is on no list — check that
+> screen's `### <id>` group, then the other groups and the preamble, since shared strings such
+> as tab labels may be listed once — and (2) text whose wording differs between picture and
+> list. A list string with `{placeholders}` matches any value in the picture. Skip sample data
+> (names, numbers, dates, times, user content), system UI (status bar, keyboard) and anything
+> the list gives as an `(e.g. …)` example. Return at most 40 lines, `<id>: missing "<text>"` or
+> `<id>: differs — picture "<a>" · list "<b>"`, or the single line `no differences`.
+
+`no differences` → one line in the Stage 6 summary's Design line. Otherwise put the differences
+to the owner — up to four per `AskUserQuestion`, each as what they will see ("the history
+screen's empty state says 'Nothing yet' in the picture but 'No sessions yet' in the list"),
+options **Use the picture's wording** · **Keep the list's wording** · Other, recommending the
+picture unless it reads like a placeholder. Apply each answer to `## Copy`, log it in `SPEC.md`'s
+interview log, then re-run `prepare-design.sh design` (it commits the change) and
+`check-design.sh design`.
+
 Then draft the fidelity criteria, numbered after the last `S<k>`. Decide the theme file the
 tokens phase will create (e.g. `src/theme/tokens.ts`) and any files generated from it that must
 carry a token value literally (e.g. `index.html` for `theme-color`, a web manifest) — generated,
@@ -921,7 +945,7 @@ It resolves each seed against `$RELAY_ROOT/graph/graph.json` (when Stage 2 built
 
 **Exemplars.** Give every phase a `## Exemplars` section naming 2–3 **existing** files whose patterns the phase must match — "follow the control pattern in `Sources/App/UI/Controls.swift`; match the test shape in `Tests/SchedulerTests.swift`". Write them now, while recon context is warm: this is the only moment anything sees the codebase holistically, and the subagent that executes the phase starts cold and opens these files first. Greenfield phase 1 may say `- none yet (first code in the repo)`; every later phase names files earlier phases created. `validate-phase.sh` warns when the section is missing.
 
-**Design package (Stage 2.7).** A phase that builds a screen names, in its Work, the file that gets the screen's `design: <id>` comment — the screens-built criterion counts exactly one per id. Its `## Exemplars` cite the design by section and file next to the code exemplars — `design/HANDOFF.md §overlay`, `design/screens/overlay.png` — never `design/source/` and never all of `HANDOFF.md` when one section will do.
+**Design package (Stage 2.7).** A phase that builds a screen names, in its Work, the file that gets the screen's `design: <id>` comment — the screens-built criterion counts exactly one per id. It also gates that screen's wording: an acceptance criterion and mandatory command `bash <run-root>/check-design.sh design --verify copy --screen <id> --except <run-root>/SPEC.md` (one `--screen` per screen the phase builds) — the run-wide copy check stays on the last screen phase and Polish & Harden (`references/phase-design.md`, UI redesign shape). Its `## Exemplars` cite the design by section and file next to the code exemplars — `design/HANDOFF.md §overlay`, `design/screens/overlay.png` — never `design/source/` and never all of `HANDOFF.md` when one section will do.
 
 **Research (Stage 2.6).** A phase whose work a research answer shapes cites it by section —
 `research/pitch-detection.md §Implications for this plan` — and copies the specific fact it
@@ -1002,6 +1026,7 @@ Spec (<run-root>/SPEC.md) — what the audit will grade against:
   Research: <n> questions — <a> answered, <u> unverified finding(s), <c> contradiction(s) resolved
     (or: "none — <reason>")
   Design: design/HANDOFF.md @ <sha> — <S> screens · fidelity S<a>–S<b><, no tokens/components/copy check: …>
+    · pictures vs copy list: <no differences | n differences, each decided by you>
     (or: "skipped" · or omit the line when there was no design stage)
 
 Phases:

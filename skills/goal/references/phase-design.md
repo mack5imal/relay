@@ -59,7 +59,12 @@ the screenshots show the build after the review, tidy-up and security fixes.
 The fidelity criteria's check, `<run-root>/check-design.sh design --verify <aspect>`, covers
 every approved screen at once, so it cannot pass until the last screen exists: make it a
 mandatory command of the last screen-building phase and of Polish & Harden, not of earlier
-phases (the tokens aspect is the exception — it can gate the tokens phase itself).
+phases (the tokens aspect is the exception — it can gate the tokens phase itself). **Copy is
+gated per screen:** each content phase carries `check-design.sh design --verify copy --screen
+<id> --except <run-root>/SPEC.md` (one `--screen` per screen it builds) as an acceptance
+criterion and a mandatory command, so a screen's wording is checked by the phase that wrote it.
+tunez gated all 14 screens' copy in one phase, which inherited 58 misses from the phases before
+it and spent its window repairing their screens.
 
 ## Acceptance criteria — the test of a good phase
 

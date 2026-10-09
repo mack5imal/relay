@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The planner checks the design pictures against the typed wording.** The designer hands
+  back screen pictures and a typed list of every piece of text, and the build was held only to
+  the list. At the design step a subagent now compares each picture's visible text with the
+  list and the planner asks you about every difference before the build starts.
+
 - **Relay offers to set up git.** In a folder that isn't a repository, the first planning
   question offers to create one and save the files already there as the starting point.
   Secrets and generated folders are left out and added to `.gitignore`. Without git, relay
@@ -20,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only found at the end of an unattended run.
 
 ### Fixed
+
+- **Each screen's wording is checked by the phase that builds it** (`check-design.sh --verify
+  copy --screen <id>`), instead of one late phase inheriting every earlier screen's misses (58
+  on tunez). Text found only in a code comment no longer counts — builders had satisfied the
+  check with JSDoc lines — and `(e.g. …)` examples in the design's copy list are no longer
+  required wording.
 
 - **Fewer, better edge-case prompts.** The planner's edge probe raised "unusual situation"
   prompts from generic words ("each", "state", "name") and from file names inside commands —

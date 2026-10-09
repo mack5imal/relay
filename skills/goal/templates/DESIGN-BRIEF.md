@@ -170,7 +170,9 @@ Rules for the package:
 - Only **approved** designs go in `screens/` and `HANDOFF.md`. The two takes I didn't choose,
   and any other rejected explorations, stay out — or under `source/` only.
 - Use the screen ids above verbatim — in the table, the `###` headings, and the PNG file names.
-- Every piece of visible text goes in `## Copy`, exactly as it should appear.
+- Every piece of visible text goes in `## Copy`, exactly as it should appear. Sample values
+  (a name, a number) go in `(e.g. …)` after the string they fill: `` `{key}` (e.g. `F major`) ``
+  — examples are not checked as wording.
 - Name every colour, size and radius you reuse as a token, and name every reusable component —
   the builder will define each one once, under your name. A colour that changes with the theme
   is one token whose value reads `light #… · dark #…`, not two tokens. Several tables under
