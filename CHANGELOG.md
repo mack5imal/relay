@@ -26,6 +26,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The tidy-up never makes a test check the code against itself.** It used to treat a test's
+  own reference calculation as duplicate code and replace it with a call to the production
+  function, so the test passed whatever the code did. Its rules now say that repetition is
+  deliberate.
+- **An approved way to wait on a long command.** A builder whose command moved to the
+  background used to read the tool's saved output, putting the whole output back into its
+  memory. Logs from `run-logged.sh` now end with `[run-logged] exit: <code>`, and every brief
+  says to check the log instead.
+- **Builders check a file's length before opening it.** Over 150 lines, they read the part they
+  need. `tools/check-run.py` now warns on more than five whole-file reads in a window and on
+  long command output that skipped the log. tunez's windows made up to 15 whole-file reads each.
+
 - **Each screen's wording is checked by the phase that builds it** (`check-design.sh --verify
   copy --screen <id>`), instead of one late phase inheriting every earlier screen's misses (58
   on tunez). Text found only in a code comment no longer counts — builders had satisfied the
