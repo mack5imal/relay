@@ -203,7 +203,7 @@ recon, and neither `--quick` run said it was one. The mode and the memory hits t
 on the first interview question (Stage 2.5), which cannot be skipped the same way — but print the
 block here too, because this is the moment a stale memory or a missed flag is cheapest to fix.
 
-**Ask no questions here — with one exception.** The interview is Stage 2.5, after recon. Asking
+**Ask no questions here — with the exceptions below** (design, research tools, git, the push remote). The interview is Stage 2.5, after recon. Asking
 before the codebase has been scanned means asking things the repo could have answered — the
 single most common way an interview wastes the user's patience and spends it on the wrong
 questions.
@@ -228,6 +228,60 @@ only Stage 0 files), and stop; re-running `/relay:goal` starts clean. On *contin
 researcher marks its findings `unverified (training knowledge)`. When only Context7 is missing,
 ask nothing: add `Context7: not installed — library docs researched via web search` to the
 intake block.
+
+**Git and the push remote.** Right after printing the intake block, run (one call, from the
+project root):
+
+```bash
+bash "$RELAY_DIR/scripts/relay-git.sh" setup "$RELAY_ROOT"
+```
+
+It only reads: `git: repo|none`; without git, `files: N` and the folder's entries (secrets and
+generated folders marked `(left out — …)`); `remote: <name>|none|choose: <a> <b>…`; and when
+there is no usable push remote, `gh: <login>|signed-out|missing` and `suggest: <login>/<folder>`
+(`(exists, private|public)` when that repo is already on GitHub).
+
+- **`git: none`** — ask, in the same `AskUserQuestion` call as the design / research questions
+  when they apply: header "Git", question "This folder isn't a git repository. Relay saves each
+  phase as a commit, and its review, tidy-up and final audit compare against git — without it
+  they fall back to weaker checks. Set up git here?" When `files:` is above 0, put the listed
+  entries in the question text and say which are left out. Options: **Set up git here
+  (Recommended)** — with files, label it "Set up git and save the N files here as the starting
+  point", and say in the description that secrets and generated folders are left out and added
+  to `.gitignore` · **Continue without git** (no commits, no run branch, no push, weaker checks).
+  On *set up*: `bash "$RELAY_DIR/scripts/relay-git.sh" init "$RELAY_ROOT"`, adding `--save` when
+  `files:` is above 0 (owner, 2026-10-08: one choice covers both, so pre-flight is not stopped by
+  the files a moment later); show its lines. Exit 1 prints the reason and the fix (e.g. no git
+  name/email) — show it, and re-run once the user has fixed it. On *continue*: Push is `off — no
+  git repository`, whatever the flags said.
+- **Push is on and there is no usable remote** (`remote: none` or `choose:`, with git, or just
+  set up) — ask, as its own question after any `init`: header "Remote". With `remote: none`,
+  the question is "Push is on, but this repository has no remote to push to. Connect one?", and
+  the options are:
+  - **Create a private GitHub repo `<suggest>` and connect it (Recommended)**. Offer it only
+    when `gh:` is a login, and give the full name in the label. When `suggest:` says `exists`,
+    the label is **Connect your existing repo `<suggest>`** instead, and the description gives
+    its visibility.
+  - **I'll add a remote myself**. Print `git remote add origin <url>` (pushing comes after the
+    audit, so adding the remote mid-run still works).
+  - **Turn push off for this run**, which sets `off — no remote`.
+
+  Without `gh` (`missing` / `signed-out`), the first option is **Install / sign in to gh, then
+  check again**. Its description is "`brew install gh` (or https://cli.github.com), then
+  `! gh auth login`", and choosing it re-runs `setup` and asks again. On *create* / *connect*,
+  run `bash "$RELAY_DIR/scripts/relay-git.sh" remote "$RELAY_ROOT" --create <suggest>` (or
+  `--connect`) and show its line.
+
+  With `choose: <a> <b>…`, the question is "Push is on, and this repository has several remotes,
+  none called origin. Which one should the run branch go to?". The options are the remotes (at
+  most three) plus **Turn push off for this run**, and the answer becomes `Push: on — to
+  <remote>`.
+
+  **Relay never creates a public repository and never pushes while planning.** `remote` only
+  adds `origin`. The one push is the run branch, after the audit. On tunez, the planner made the
+  repo itself and pushed the owner's `main`.
+
+The same remote question runs when the user turns push on at Stage 6.
 
 **Open the first question's text with the intake block** — `Task:`, `Type:` · `Mode:`, `Design:`,
 `Checks:`, `Push:`, `Applied from memory:` (and any `Stale (run gone):` or `Context7:` lines) — then ask. Whichever
@@ -759,7 +813,7 @@ Each phase has:
 - **Tidy-up pass** — `Cleanup: on` by default. After the last phase, one subagent removes the duplication, inconsistency and dead code that per-phase windows leave behind, behaviour-preserving only, before the audit re-verifies everything.
 - **Security pass** — `Security pass: yes` when the build touches any security surface: network or HTTP, authentication or authorisation, user input, file paths, shell or process execution, secrets or credentials, deserialisation, or new dependencies. Otherwise `skip — <reason>` (e.g. `skip — docs and styling only`). Name the surfaces you found; Stage 6 shows them.
 
-**Push** — `Push: on` or `off — <reason>`, from Stage 1: `off — default` when nothing chose it, `off — --no-push`, `off — RELAY_PUSH=off`; `on` for `--push` or `RELAY_PUSH=on`. It only matters on a branch relay creates (Stage 7); on the user's own branch nothing is ever pushed, but write the field anyway.
+**Push** — `Push: on` or `off — <reason>`, from Stage 1: `off — default` when nothing chose it, `off — --no-push`, `off — RELAY_PUSH=off`, `off — no git repository`, `off — no remote`; `on` for `--push` or `RELAY_PUSH=on`, or `on — to <remote>` when Stage 1 picked one of several remotes. It only matters on a branch relay creates (Stage 7); on the user's own branch nothing is ever pushed, but write the field anyway.
 
 **Under `--lean`**, write `Review: skip — --lean` on every phase, `Cleanup: off — --lean` and `Security pass: skip — --lean`. Still make the security assessment above: when it finds surfaces, Stage 6 warns that the pass is off, and the user can switch any check back on there (change that one field or line; the rest stay off). `references/phase-design.md` has the guidance on review skips and security surfaces.
 
@@ -812,6 +866,8 @@ depends on (a window size, an API call order, a version pin) into its `## Notes`
 research file whole.
 
 **Self-contained specs.** The executor is a fresh subagent that reads the spec inside its brief and cannot ask anyone anything. Anything you would have told an inline executor in passing — the assumption behind a criterion, which of two files is canonical, why a command is mandatory — goes in the spec's `## Notes`.
+
+**A `## Mandatory commands` bullet is the command alone** (backticks optional) — pre-flight, the tidy-up and the security pass run each bullet as written. Put the summary line it should print under `## Evidence required`; `validate-phase.sh` rejects a bullet with a description after the command (a tunez bullet `` `npm run build` — summary; exit 0 `` ran as `; exit 0` and passed). List the gate even when its prerequisites come from the build (no `package.json` before phase 1) — pre-flight reports those as not runnable yet, not as failures.
 
 **No git in phase specs.** Relay commits every phase itself (`relay-git.sh commit`, the last step of a passing verify; `PHASE-BRIEF.md` §6), on the branch Stage 7 sets up, and pushes only after the audit, and only with `Push: on`. So a spec carries no commit, branch, or push bullets and no criterion about commits — a planner-written "commit as …" would make two commits per phase, and a "do not commit" would contradict the brief. The one exception is a push the task itself is about (a deploy that works by `git push`), and only when `SPEC.md` asks for it.
 
@@ -891,7 +947,9 @@ Checks: review after phases <list> (skipped: <k> — <phase: reason, …>) · ti
     \"security on\" to restore it.")
 
 Push: off — <branch> stays local; say "push on" to push it after the audit
-  (or: "Push: on — <branch> goes to <remote> after the audit"; on the user's own branch:
+  (or: "Push: on — <branch> goes to <remote> after the audit", <remote> as `setup` reports it
+   — never a placeholder; "Push: on — no remote yet; add one before the run ends" when the user
+   chose to add it themselves; on the user's own branch:
    "Push: n/a — commits land on <branch>, which relay never pushes")
 
 Worth your eye (<K> of <N> criteria):
@@ -945,7 +1003,7 @@ Then call `AskUserQuestion` with one question, header "Start chain?", offering *
 
 - **Start now** — run pre-flight smoke check (Stage 6.5), then print the ready-to-paste `/goal` line; I paste it and the chain runs unsupervised
 - **Adjust an assumption** — pick one to change (will re-show plan)
-- **Tweak a phase** — change criteria, scope, or commands for a specific phase (including its `Review:` line, the run's tidy-up and security checks, or push on/off)
+- **Tweak a phase** — change criteria, scope, or commands for a specific phase (including its `Review:` line, the run's tidy-up and security checks, or push on/off — turning push on runs Stage 1's remote check and question first)
 - **Restructure phases** — merge, split, add, or remove a phase
 
 If the user's correction changes *what is being built* rather than how it is sliced, the spec is
@@ -969,7 +1027,7 @@ After Stage 6 returns "Start now" and **before** printing the `/goal` block, run
    ```bash
    bash "$RELAY_DIR/scripts/preflight.sh" "$RELAY_ROOT" --account 'gh auth status' 'gh auth login'
    ```
-   (one `--account '<status>' '<login>'` pair per account from step 1; none when the plan reaches no account). It unions every phase spec's `Mandatory commands:` into a deduplicated set and runs each once (full output in `$RELAY_ROOT/logs/preflight/`), then checks the working tree with `relay-git.sh preflight` — after the commands, so anything they created is caught too — appends the outcome to `STATE.md`'s `Notable events`, and prints the `PREFLIGHT_GREEN` / `PREFLIGHT_RED` block: per-command `ok` / `FAIL` lines (a failure with its exit code, last 5 lines, and `run: ! <login>` for an account check), then the `git:` lines. **Its output is the block — show it to the user as printed**; never write your own loop (the inline zsh loop broke on two runs and never printed the block). Exit 0 = green, 1 = a command failed, 3 = the working tree is dirty.
+   (one `--account '<status>' '<login>'` pair per account from step 1; none when the plan reaches no account). It unions every phase spec's `Mandatory commands:` into a deduplicated set and runs each once (full output in `$RELAY_ROOT/logs/preflight/`) — except a command whose prerequisites only the build creates (no `package.json` yet or no such script in it, no `Cargo.toml` / `go.mod` / `Makefile` / …, a script file that does not exist yet, `check-design.sh --verify`), which it lists as `- later <command> — <why>; first used by phase N` without running. That list is fixed in the script; you cannot add to it, so a broken baseline still shows as `FAIL`. Then it checks the working tree with `relay-git.sh preflight` — after the commands, so anything they created is caught too — appends the outcome to `STATE.md`'s `Notable events`, and prints the `PREFLIGHT_GREEN` / `PREFLIGHT_RED` block: per-command `ok` / `FAIL` lines (a failure with its exit code, last 5 lines, and `run: ! <login>` for an account check), then the `git:` lines. **Its output is the block — show it to the user as printed** (all of it, `later` lines included — never a summary of it); never write your own loop (the inline zsh loop broke on two runs and never printed the block). Exit 0 = green (`later` lines allowed), 1 = a command failed, 3 = the working tree is dirty. **The pre-flight outcome is never a plan assumption**: don't write "pre-flight will be red — dispatch with skip" into Key assumptions (the tunez planner did, which made the skip routine) — a red result goes to the owner through step 5.
 
    Why the tree matters: relay commits each phase with `git add -A`, so any uncommitted change — modified tracked files **or** untracked files — would be swept into phase 1's commit (and `repo-state.sh` would count it as the run's work). The `git:` lines also carry the branch plan (on the default branch: a `relay/<run-id>` run branch, pushed after the audit with `Push: on` or kept local with it off; on any other branch: commits land there, never pushed) and warnings that never block — commit signing on, or a remote relay cannot reach (checked only with `Push: on`) (the run still finishes; a failed push is reported for the user to do by hand). Without git it says relay will not commit, and passes.
 3. **Exit 3 — the tree is dirty** (whatever the commands did): ask with `AskUserQuestion`, putting the `git: ❌` line's path list in the question text: **"I've committed or stashed it — re-check"** / **"Stop here"**. Say how in the question: commit what they want to keep, or `! git stash -u` to set everything aside (`! git stash pop` after the run). **Never stash, commit, or discard the user's work yourself, and never offer to dispatch anyway** — phase 1's commit would take their work with it. "Re-check" runs step 2 again (the whole pre-flight — a command result from before the cleanup would be stale); "Stop here" ends the session; the plan stays in `$RELAY_ROOT`.
@@ -1099,7 +1157,7 @@ To change the orchestrator, edit `templates/PROTOCOL.md`; to change what a subag
 - `scripts/recover.sh` — after an interruption, settles the dispatch that was in flight (the window died with the old process → recorded as interrupted and re-dispatched; still running → keep waiting; finished but unrecorded → echo and record), from the `phases/in-flight` file `assemble-brief.sh` writes (copied to `<run-root>/recover.sh` at dispatch)
 - `scripts/resume-line.sh` — prints the ready-to-paste `/goal` that restarts a blocked run from the phases that remain, and warns when uncommitted work would land in the resumed phase's commit (read-only; copied to `<run-root>/` at dispatch)
 - `scripts/preflight.sh` — Stage 6.5 in one call: runs every phase's mandatory commands (plus account sign-in checks) once, checks the working tree via `relay-git.sh preflight`, logs the outcome to `STATE.md`, and prints the `PREFLIGHT_GREEN` / `PREFLIGHT_RED` block; `--bypass` logs the owner's skip (planner-only)
-- `scripts/relay-git.sh` — every git write a run makes: `preflight` (Stage 6.5: a dirty tree blocks; branch plan; signing / remote warnings), `branch` (Stage 7: `relay/<run-id>` from the default branch), `commit` (each phase / fix / audit-fix subagent, with the run's trailers; refuses secrets and generated files), `push` (the orchestrator, once after the audit; relay-created branches with `Push: on` only — off prints the command; always exits 0) (copied to `<run-root>/` at dispatch)
+- `scripts/relay-git.sh` — every git write a run makes: `setup` / `init` / `remote` (Stage 1: report, `git init` [+ save the folder's files], connect a private GitHub repo — never pushes), `preflight` (Stage 6.5: a dirty tree blocks; branch plan; signing / remote warnings), `branch` (Stage 7: `relay/<run-id>` from the default branch), `commit` (each phase / fix / audit-fix subagent, with the run's trailers; refuses secrets and generated files), `push` (the orchestrator, once after the audit; relay-created branches with `Push: on` only — off prints the command; always exits 0) (copied to `<run-root>/` at dispatch)
 - `scripts/assemble-brief.sh` — builds a subagent's brief (`phases/phase-N.brief.md`, or `.fix.brief.md` / `audit-R.brief.md` / `audit-fix-R.brief.md`) from `PHASE-BRIEF.md`: spec, carryover memory files, precomputed map slice, state excerpt, block formats; one summary line (copied to `<run-root>/assemble-brief.sh` at dispatch)
 - `scripts/record-phase.sh` — validates a subagent's report file (`phases/phase-N.report.md`, or `.fix.report.md` / `audit-R.report.md` / `audit-fix-R.report.md`) and applies every `STATE.md` change for its outcome — phase row, status, current phase, engineering lines, events, failure log, carryover — idempotently; logs no-report dispatches; one summary line (copied to `<run-root>/record-phase.sh` at dispatch)
 - `scripts/run-logged.sh` — runs a command with its full output written to a log file, printing only the exit code and a short tail (copied to `<run-root>/run-logged.sh` at dispatch)

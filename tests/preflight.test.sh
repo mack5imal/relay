@@ -172,6 +172,113 @@ assert_rc "unknown option exits 2" 2
 
 # ---------------------------------------------------------------------------
 echo
+echo "[8] Bullet shapes — backtick-wrapped or with a trailing description run only the command"
+P="$W/shapes"
+project "$P" "echo a" "echo b"
+cat > "$P/.relay/run-Ab3/phases/phase-1.md" <<'EOF'
+# Phase 1
+
+## Mandatory commands
+
+- `echo built` — vite build summary line; exit 0
+- echo plain — trailing description
+- echo dash – en-dash description
+- `echo spaced  out`
+
+## Acceptance criteria
+
+- [ ] something
+EOF
+run "$P" .relay/run-Ab3
+assert_rc "exits 0" 0
+assert_contains "the backticked command runs bare" "- ok    echo built" "$OUT"
+assert_missing "… its description never runs" "summary line" "$OUT"
+assert_contains "an em-dash description is dropped" "- ok    echo plain" "$OUT"
+assert_contains "… and an en-dash one" "- ok    echo dash" "$OUT"
+assert_contains "spacing inside the backticks is kept" "- ok    echo spaced  out" "$OUT"
+assert_contains "4 + 1 commands" "Commands: 5 clean" "$OUT"
+cat > "$P/.relay/run-Ab3/phases/phase-1.md" <<'EOF'
+# Phase 1
+
+## Mandatory commands
+
+- `false` — must fail; exit 0
+
+## Acceptance criteria
+
+- [ ] something
+EOF
+run "$P" .relay/run-Ab3
+assert_rc "the tunez false pass is gone — a failing command stays red" 1
+assert_contains "it is reported as itself" "- FAIL  false — exit 1" "$OUT"
+
+# ---------------------------------------------------------------------------
+echo
+echo "[9] Not runnable yet — what the build creates is listed, not run, and stays green"
+BIN="$W/bin"; mkdir -p "$BIN"
+for t in npm pnpm npx; do printf '#!/bin/sh\necho "%s $*" >> "$PF_STUB_LOG"\nexit 0\n' "$t" > "$BIN/$t"; chmod +x "$BIN/$t"; done
+export PF_STUB_LOG="$W/stub.log"
+runp() { OUT="$(cd "$1" && PATH="$BIN:$PATH" bash "$PF" "${@:2}" 2>&1)"; RC=$?; }
+P="$W/green-field"
+project "$P" "npm run build|npm test|bash .relay/run-Ab3/check-design.sh design --verify tokens --theme src/theme.ts|./scripts/gen.sh|python3 tools/check.py|cargo test|make lint|go test ./...|echo real" "npm run build|FOO=1 ./bin/missing --flag|swift build|poetry run pytest|mvn test"
+: > "$PF_STUB_LOG"
+runp "$P" .relay/run-Ab3
+assert_rc "exits 0" 0
+assert_eq "PREFLIGHT_GREEN" "PREFLIGHT_GREEN" "$(printf '%s\n' "$OUT" | head -1)"
+assert_contains "counts them apart" "Commands: 13 — 1 clean, 12 not runnable yet (what they need comes from the build)" "$OUT"
+assert_contains "no package.json" "- later npm run build — no package.json yet; first used by phase 1" "$OUT"
+assert_eq "a command in two phases is listed once" "1" "$(printf '%s\n' "$OUT" | grep -c 'later npm run build')"
+assert_contains "check-design --verify waits for the build" "- later bash .relay/run-Ab3/check-design.sh design --verify tokens --theme src/theme.ts — checks the built screens, so it runs during the build; first used by phase 1" "$OUT"
+assert_contains "a missing script path" "- later ./scripts/gen.sh — ./scripts/gen.sh doesn't exist yet" "$OUT"
+assert_contains "an interpreter's missing script" "- later python3 tools/check.py — tools/check.py doesn't exist yet" "$OUT"
+assert_contains "cargo with no Cargo.toml" "cargo test — no Cargo.toml yet" "$OUT"
+assert_contains "make with no Makefile" "make lint — no Makefile yet" "$OUT"
+assert_contains "go with no go.mod" "go test ./... — no go.mod yet" "$OUT"
+assert_contains "a VAR=value prefix is skipped" "FOO=1 ./bin/missing --flag — ./bin/missing doesn't exist yet; first used by phase 2" "$OUT"
+assert_contains "swift" "swift build — no Package.swift yet" "$OUT"
+assert_contains "poetry" "poetry run pytest — no pyproject.toml yet" "$OUT"
+assert_contains "mvn" "mvn test — no pom.xml yet" "$OUT"
+assert_contains "everything else runs" "- ok    echo real" "$OUT"
+assert_eq "nothing waiting was run" "" "$(cat "$PF_STUB_LOG")"
+assert_eq "only the run command has a log" "1" "$(ls "$P/.relay/run-Ab3/logs/preflight" | grep -c '\.log$')"
+assert_contains "the event counts both" "Pre-flight green: 1 command clean, 12 not runnable yet." "$(events "$P")"
+
+P="$W/brown-field"
+project "$P" "npm run build|npm run check:bundle|pnpm lint|pnpm install|npm ci|npx tsc --noEmit|npm test" "cd sub && npm run nothing-here|python3 -c 'import sys; sys.exit(4)'"
+printf '{"name":"x","scripts":{"build":"tsc","test":"vitest"}}\n' > "$P/package.json"
+git -C "$P" add package.json; git -C "$P" commit -qm pkg; mkdir -p "$P/sub"
+: > "$PF_STUB_LOG"
+runp "$P" .relay/run-Ab3
+assert_rc "a real failure is still red" 1
+assert_contains "a script package.json has runs" "- ok    npm run build" "$OUT"
+assert_contains "a script a later phase adds waits" "- later npm run check:bundle — package.json has no \"check:bundle\" script yet; first used by phase 1" "$OUT"
+assert_contains "… for pnpm's short form too" "- later pnpm lint — package.json has no \"lint\" script yet" "$OUT"
+assert_contains "a package-manager built-in runs" "- ok    pnpm install" "$OUT"
+assert_contains "npm's own commands run" "- ok    npm ci" "$OUT"
+assert_contains "npx never waits" "- ok    npx tsc --noEmit" "$OUT"
+assert_contains "npm test with a test script runs" "- ok    npm test" "$OUT"
+assert_contains "a command starting with cd runs" "- ok    cd sub && npm run nothing-here" "$OUT"
+assert_contains "an interpreter's -c is a command, not a path" "- FAIL  python3 -c 'import sys; sys.exit(4)' — exit 4" "$OUT"
+assert_contains "counts all three kinds" "Commands: 9 — 6 clean, 1 failed, 2 not runnable yet" "$OUT"
+
+printf '{ not json\n' > "$P/package.json"; git -C "$P" commit -qam broken
+P2="$W/brown-broken"; project "$P2" "npm run build" "echo b"
+printf '{ not json\n' > "$P2/package.json"; git -C "$P2" add package.json; git -C "$P2" commit -qm broken
+runp "$P2" .relay/run-Ab3
+assert_contains "an unreadable package.json is the baseline's problem — the command runs" "- ok    npm run build" "$OUT"
+
+# ---------------------------------------------------------------------------
+echo
+echo "[10] A phase command that is also an account check runs once, as the account check"
+P="$W/dup-acct"
+project "$P" "echo who|echo a" "echo who"
+run "$P" .relay/run-Ab3 --account "echo who" "who login"
+assert_rc "exits 0" 0
+assert_eq "runs once" "1" "$(printf '%s\n' "$OUT" | grep -c 'ok    echo who')"
+assert_contains "2 commands in all" "Commands: 2 clean" "$OUT"
+
+# ---------------------------------------------------------------------------
+echo
 echo "[7] Called from zsh (the Bash tool's shell)"
 if command -v zsh >/dev/null 2>&1; then
   P="$W/zsh"

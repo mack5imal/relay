@@ -9,7 +9,7 @@
 **Branch:** {{BRANCH}}    <!-- set at Stage 7 by relay-git.sh branch: "relay/<run-id> (created by relay)", "<name> (yours — relay commits, never pushes)", or "no-git". Each phase, fix and audit fix is committed here; the phase row's Notes carry its sha -->
 **Cleanup:** {{CLEANUP}}    <!-- "on" — the tidy-up pass runs after the last phase, before the audit; "off — <reason>" (e.g. "off — --lean"). Missing = off (runs planned before 0.10) -->
 **Security pass:** {{SECURITY_PASS}}    <!-- "yes" — the security pass runs after the tidy-up, before the audit; "skip — <reason>" (e.g. "skip — --lean", "skip — docs only"). Missing = skip -->
-**Push:** {{PUSH}}    <!-- "on" — relay pushes the run branch it created once after the audit; "off — <reason>" ("off — default", "off — --no-push", "off — RELAY_PUSH=off"): the branch stays local and RELAY_RUN_COMPLETE gives the command. Never the owner's branch. Missing = on (runs planned before 0.11) -->
+**Push:** {{PUSH}}    <!-- "on" — relay pushes the run branch it created once after the audit, to origin or the only remote ("on — to <remote>" names one of several); "off — <reason>" ("off — default", "off — --no-push", "off — RELAY_PUSH=off"): the branch stays local and RELAY_RUN_COMPLETE gives the command. Never the owner's branch. Missing = on (runs planned before 0.11) -->
 **Memory dir:** {{MEM_DIR}}    <!-- absolute path detected at Stage 0 by memory-dir.sh (Claude Code keeps one memory dir per git repository, shared by its worktrees and subdirectories: ~/.claude/projects/<main checkout, non-alphanumerics → ->/memory; outside git, the working directory). Phase subagents write memory files here; the brief assembler reads carryover from it. May not exist yet — created on first write -->
 
 

@@ -29,6 +29,7 @@ no() { fail=$((fail + 1)); printf '  \033[31m✗\033[0m %s\n      %s\n' "$1" "$2
 assert_rc()       { if [ "$2" = "$RC" ]; then ok "$1"; else no "$1" "expected exit $2 got $RC (out: $OUT)"; fi; }
 assert_contains() { case "$3" in *"$2"*) ok "$1";; *) no "$1" "missing substring [$2] in [$3]";; esac; }
 assert_missing()  { case "$3" in *"$2"*) no "$1" "unexpectedly contains [$2]";; *) ok "$1";; esac; }
+assert_eq()       { if [ "$2" = "$3" ]; then ok "$1"; else no "$1" "expected [$2] got [$3]"; fi; }
 
 run() { OUT="$("$@" 2>&1)"; RC=$?; }
 
@@ -80,6 +81,26 @@ echo "[2] Mandatory commands must actually list commands"
 run bash "$VP" "$(spec nocmds 2 "$TWO_CRITS" "")"
 assert_rc "empty command section exits 1" 1
 assert_contains "explains why it matters" "build/typecheck/lint/test gate" "$OUT"
+
+# ---------------------------------------------------------------------------
+echo
+echo "[2b] A command bullet is the command alone (tunez's false pass)"
+run bash "$VP" "$(spec bare 2 "$TWO_CRITS" '- npm run build
+- npm test
+')"
+assert_rc "bare commands pass" 0
+run bash "$VP" "$(spec described 2 "$TWO_CRITS" '- `npm run build` — vite build summary line; exit 0
+- npm test — vitest: N passed
+- npm run lint – eslint
+- `npm run e2e`
+')"
+assert_rc "a described bullet exits 1" 1
+assert_contains "names a backticked bullet with text after it" "bullet carries a description: '\`npm run build\` — vite build summary line; exit 0'" "$OUT"
+assert_contains "… a bare one with an em dash" "'npm test — vitest: N passed'" "$OUT"
+assert_contains "… and an en dash" "'npm run lint – eslint'" "$OUT"
+assert_missing "a backticked command alone is fine" "'\`npm run e2e\`'" "$OUT"
+assert_contains "says where the summary line goes" "under '## Evidence required'" "$OUT"
+assert_eq "one error per bad bullet" "3" "$(printf '%s\n' "$OUT" | grep -c 'carries a description')"
 
 # ---------------------------------------------------------------------------
 echo
