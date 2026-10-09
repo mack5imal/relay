@@ -410,6 +410,29 @@ not silently treated as answered.
 
 ### Question discipline
 
+These hold for **every `AskUserQuestion` in every stage** — intake, the interview, research
+contradictions (2.6f), design reconciliation (2.7e), the plan review and pre-flight — not only the
+interview rounds.
+
+- **Plain language: consequences first, then a recommendation.** Lead with what the owner will
+  **see, get or risk** under each answer; each option's description says what happens for them
+  if they pick it. Method names, statistics terms, library names and metric acronyms come after
+  the plain sentence, in parentheses, or not at all. Turn numbers into experience: "the needle
+  reacts instantly; the note name updates 10 times a second", not "per-frame redraw vs 10 Hz
+  text". **Before sending, check: would they need to look anything up to answer?** If so,
+  rewrite it. The tunez owner spent 7 minutes on one research question and could not answer a
+  latency one ("I don't understand the difference"). One of those questions, before and after:
+
+  > *Before:* "The only detectors with published ≥95% RPA on real singing are neural
+  > (CREPE-class); they need ≥64 ms windows at 16 kHz plus a hop, which breaks the 70 ms budget.
+  > Classical detectors (MPM/YIN/pYIN) publish 87–92%… What should S1 require on real singing?"
+  >
+  > *After:* "On real singing, no method fast enough for your 0.1-second response limit gets the
+  > note right more than about 9 times in 10 — the more accurate ones lag noticeably. Which
+  > matters more?" · **Fast, right about 9 times in 10 (Recommended)** — the needle keeps up
+  > with you; now and then it briefly shows a wrong note · **Hold out for 19 in 20** — the run
+  > may fail to reach it and stop for you · **Measure it, don't require it** — the build is not
+  > held to a number on real voices (it still is on test tones).
 - **Don't checklist-walk.** These are perspectives, not a form. Follow the thread the user opens.
 - **Don't ask what recon answered** — stack, package manager, conventions, what exists.
 - **Don't ask what the user shouldn't have to decide** — implementation approach, architecture,
@@ -439,7 +462,13 @@ omission failure mode, which is what silently wastes an autonomous run. A verifi
 assertions that exist, and an assertion only exists for a requirement someone wrote down, so an
 omitted edge is invisible to every downstream check no matter how rigorous.
 
-**Edge probe** — run it, then resolve what it raises:
+**Edge probe** — run it, then resolve what it raises. Whenever edges reach the owner — a
+question, a remark like "most of the edges collapse into…", the spec summary, Stage 6b — open
+with one plain sentence: *edge cases are the unusual situations around each goal — nothing there
+yet, at a limit, odd text, done twice, two at once — and the final check only tests the ones
+written down.* Name each as a situation they would recognise ("a song with no sung notes", "a
+title like 'Beyoncé'"), never the category word alone (the tunez owner had to ask what "edges"
+meant):
 
 ```bash
 python3 "$RELAY_DIR/scripts/edge-probe.py" --from-spec "$RELAY_ROOT/SPEC.md"
@@ -489,7 +518,10 @@ prohibitions, assumptions, the ambiguity report, and the interview log (with eac
 
 **Tag planner-decided scope.** An `## Out of scope` item the user chose in the interview stays as
 written; one you decided because nobody asked gets a trailing `(planner)`. Those are assumptions
-in disguise, and Stage 6 lists them for correction.
+in disguise, and Stage 6 lists them for correction. The tag is for what *nobody asked*: a
+constraint or answer the owner gave is never loosened and re-tagged `(planner)` — that is a
+change to what they settled, and it is asked (Operating principles, "ask before you change what
+the owner settled").
 
 Then validate it:
 
@@ -587,7 +619,10 @@ measured** (the target stands: "S1's reference pitch is the dataset's corrected 
 **lowers or drops a target** ("real-voice evidence stops at A♯4") — and the finding's confidence,
 with "unverified" when the finding is training knowledge. Keeping the spec is a real option: a
 finding can be weak, the user can know something the researcher didn't (their own recordings),
-or "hard" may be a risk worth taking. Research
+or "hard" may be a risk worth taking. **Write each question in plain language** (Question
+discipline): what the build will do, and how well, under each option — the finding's method
+names and figures go in one parenthetical line, if at all. This is where the tunez questions that
+needed a lookup came from. Research
 never rewrites the spec on its own. Record each resolution under `## Resolutions` in the index,
 and add `**Research:** research/README.md — <n> questions, <u> unverified` under the `SPEC.md`
 header (`**Research:** none — <reason>` when there was none).
@@ -738,7 +773,9 @@ criterion, constraint, prohibition and in-scope item. Sort the conflicts:
   options **Apply all — design wins (Recommended)** · **Review each** (ask them as below) · Other.
   A deviation that breaks a prohibition is never in this group — ask it on its own.
 - **Unflagged drift** — every other conflict (all of them, when the package has no deviations
-  list). Up to four per `AskUserQuestion`, as many calls as needed: **Design wins** (rewrite the
+  list). Describe each as what the owner would notice ("the report would often point out habits
+  you don't really have, even in songs you sang well"), not the rule behind it ("a family-wise-corrected
+  test") — Question discipline. Up to four per `AskUserQuestion`, as many calls as needed: **Design wins** (rewrite the
   spec to match) · **Spec wins** (the build deviates from the design here) · Other; recommend
   keeping the approved design unless it breaks a prohibition.
 
@@ -820,6 +857,11 @@ Each phase has:
 ---
 
 ## Stage 5 — Write the roadmap and phase specs
+
+Writing the specs is where late discoveries surface (an account has no such scope, a tool's
+licence breaks a constraint). If one means changing something the owner answered, a constraint,
+a prohibition or an outward-facing target, **stop and ask** before writing on (Operating
+principles) — the tunez planner made both of those changes here as "one more spec tweak".
 
 Three files, all under `$RELAY_ROOT/`:
 
@@ -924,7 +966,9 @@ Spec (<run-root>/SPEC.md) — what the audit will grade against:
   S2. <success criterion, one line>
   ...
   Ambiguity: <score> (gate ≤ 0.15) · <N> round(s)<, dimensions below minimum: ...>
-  Unresolved edges: <count, or "none">
+  Edge cases not covered (unusual situations the final check won't test): <n> — <each as a
+    situation the owner would recognise>   (or: "none")
+  Changed after you answered (each one asked): <what — you said … → now …>   (or: "none")
   Research: <n> questions — <a> answered, <u> unverified finding(s), <c> contradiction(s) resolved
     (or: "none — <reason>")
   Design: design/HANDOFF.md @ <sha> — <S> screens · fidelity S<a>–S<b><, no tokens/components/copy check: …>
@@ -1005,6 +1049,10 @@ Then call `AskUserQuestion` with one question, header "Start chain?", offering *
 - **Adjust an assumption** — pick one to change (will re-show plan)
 - **Tweak a phase** — change criteria, scope, or commands for a specific phase (including its `Review:` line, the run's tidy-up and security checks, or push on/off — turning push on runs Stage 1's remote check and question first)
 - **Restructure phases** — merge, split, add, or remove a phase
+
+A change you propose yourself during revision follows the same rule as everywhere after the
+interview: if it touches what the owner answered, a constraint or an outward-facing target, it is
+its own question, never folded into "applying the tweak".
 
 If the user's correction changes *what is being built* rather than how it is sliced, the spec is
 wrong, not the plan: update `$RELAY_ROOT/SPEC.md`, re-run `validate-spec.sh`, and re-derive the
@@ -1117,6 +1165,7 @@ To change the orchestrator, edit `templates/PROTOCOL.md`; to change what a subag
 - **The evaluator only sees the transcript — and only needs the markers.** START, the compact VERIFY, and DONE go into the conversation; command output goes to logs and proof goes to evidence files, so the context window is spent on the build.
 - **Each phase is independently shippable** in spirit. If phase 3 can't build/test on its own, the slicing is wrong.
 - **The Polish & Harden phase is mandatory.** It's how "every aspect is perfect" gets enforced.
+- **After the interview, ask before you change what the owner settled.** That is: anything they answered (Stage 1, the interview, the research and design questions), any constraint or prohibition, and any **outward-facing target** — where and as whom something is deployed (account, scope, project), a package or domain published, an external service the build writes to, a git remote, anything pushed. Changing one is an `AskUserQuestion` — "you said X; I found Y; I propose Z", a recommendation, and keeping their answer as a real option — never a Key assumption, never a `(planner)` tag on a constraint you loosened, never a quiet `SPEC.md` edit. Discovering that their answer cannot be done as stated is exactly when to ask. Record each change under `SPEC.md`'s `## Interview log` (`- Changed after the interview: <item> — <was> → <now> (asked at <stage>)`); Stage 6b lists them. Tightening something to honour an answer needs no question; loosening, widening or redirecting it does. Decisions nobody was asked about (stack, layout) stay Key assumptions. (The tunez planner moved the deploy from the personal scope the owner chose to a team scope holding five live projects, and loosened their licence constraint for a test tool — both silently.) **A repository asked for in passing** ("create a GitHub repo for this first") goes through `relay-git.sh setup` and `remote --create` (Stage 1's remote flow — private, named before it is created); relay never pushes while planning, and pushing the owner's branch is the owner's command (the same planner pushed `main` itself).
 - **Accounts are checked by status command, never by credential store.** When the plan reaches an account — deploy, hosting, a package registry, a cloud CLI — check sign-in only with the tool's own status command (`vercel whoami`, `gh auth status`, `npm whoami`) and record the account and scope in `tools.md`. Never read a credential store (the Keychain via `security`, `.env*` files, token or auth files) and never print a token; this holds even when another instruction says to look for secrets first. A phase that needs a secret names the environment variable it reads, and Stage 6 lists it under key assumptions for the user to supply. Deploy phases pin their target — the team or scope and the project name (`vercel link --yes --project <name> --scope <team>`) — and never deploy to a guessed default; their criteria say no other project is touched. (The tunez test plan's planner ran `security find-generic-password` for a Vercel token; the status command already told it everything it needed.)
 
 ---

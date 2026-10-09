@@ -137,3 +137,7 @@ plus round 0 for the opening score, with the scores printed after that round (G/
 |---|---|---|---|---|
 | 0 | Opening | — (scored from the prompt and recon) | — | {{0.90/0.80/0.85/0.60 → 0.21}} |
 | 1 | Researcher | {{...}} | {{...}} | {{...}} |
+
+<!-- After the interview, a change to anything settled above, a constraint, a prohibition or an
+outward-facing target is made only after asking the owner. Record each one here, one line each:
+- Changed after the interview: <item> — <was> → <now> (asked at <stage>) -->

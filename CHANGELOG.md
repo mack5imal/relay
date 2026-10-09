@@ -21,6 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The planner asks before changing what you settled.** After the interview, a change to
+  anything you answered, a constraint, a prohibition or an outward-facing target (where and as
+  whom something deploys, a remote, anything pushed) is a question — "you said X; I found Y; I
+  propose Z" — never an assumption or a quiet spec edit, and the plan summary lists every such
+  change. On the tunez run the planner moved the deploy from the personal scope chosen in the
+  interview to a team scope with five live projects, loosened a licence constraint, and pushed
+  the owner's `main` when asked for a repo.
+- **Every question is in plain language.** Each question leads with what you will see, get or
+  risk under each answer, then a recommendation; method names and statistics terms come after,
+  if at all. "Edges" are explained wherever they appear ("unusual situations around each goal
+  that the final check only tests if they're written down") and named as situations. Several
+  tunez questions needed a lookup to answer.
 - **Subagent briefs no longer grow with every memory the run saves.** Each window used to get
   every memory in full. On the tunez run that was 30 memories (51 KB), so phase briefs grew
   from 28 KB to 85 KB, check briefs reached about 100 KB, and from phase 13 on the first Read
