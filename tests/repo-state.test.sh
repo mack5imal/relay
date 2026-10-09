@@ -261,6 +261,51 @@ assert_contains "the second phase's file is counted" "src/later.ts" "$CF"
 cd "$REPO_ROOT"; cleanup "$d"
 
 # ---------------------------------------------------------------------------
+echo "[13] Glob deliverables: '**/' is zero or more directories; plain '*' still crosses '/'"
+# tunez: `test/accuracy/**/*.accuracy.ts` read "missing" with 3 files directly under
+# test/accuracy/ — git's default pathspec needs a directory for '**/'. ':(glob)' finds them, but
+# it alone would make `src/*.ts` stop at '/'; either reading counts.
+d="$(mk_repo)"; b="$(base_of "$d")"; cd "$d" || exit 1
+mkdir -p test/accuracy test/deep/a/b lib/nested docs/kept
+printf 'x\n' > test/accuracy/one.accuracy.ts
+git add test/accuracy/one.accuracy.ts && git commit -qm phase1 >/dev/null 2>&1
+run "$RS" deliverable "$b" 'test/accuracy/**/*.accuracy.ts'
+assert_rc  "'**/' with a committed file at depth 0 -> present" 0
+assert_contains "'**/' committed file reads as changed" "changed vs baseline" "$OUT"
+printf 'x\n' > test/deep/a/b/two.accuracy.ts
+run "$RS" deliverable "$b" 'test/deep/**/*.accuracy.ts'
+assert_rc  "'**/' with an untracked file two directories down -> present" 0
+assert_contains "'**/' untracked file named" "test/deep/a/b/two.accuracy.ts" "$OUT"
+printf 'x\n' > test/top.accuracy.ts
+run "$RS" deliverable "$b" 'test/**/top.accuracy.ts'
+assert_rc  "'**/' with an untracked file at depth 0 -> present" 0
+printf 'export const n = 1\n' > lib/nested/only.ts
+git add lib && git commit -qm phase2 >/dev/null 2>&1
+run "$RS" deliverable "$b" 'lib/*.ts'
+assert_rc  "plain '*' with only nested files still -> present" 0
+run "$RS" deliverable "$b" 'test/**/*.missing.ts'
+assert_rc  "'**/' with no match -> missing" 1
+assert_eq  "'**/' no match prints 'missing'" "missing" "$OUT"
+# unchanged since the baseline: put a file in the baseline's own commit history first
+cd "$REPO_ROOT"; cleanup "$d"
+d="$(mk_repo)"; cd "$d" || exit 1
+mkdir -p docs/kept && printf 'k\n' > docs/kept/notes.md
+git add docs && git commit -qm "docs" >/dev/null 2>&1; b="$(base_of "$d")"
+run "$RS" deliverable "$b" 'docs/**/*.md'
+assert_rc  "'**/' matching only files unchanged since baseline -> present" 0
+assert_contains "'**/' unchanged file reads as unchanged" "unchanged since baseline" "$OUT"
+cd "$REPO_ROOT"; cleanup "$d"
+# no git at all: existence via find
+od="$(mktemp -d)"; cd "$od" || exit 1
+mkdir -p test/accuracy && printf 'x\n' > test/accuracy/one.accuracy.ts
+run "$RS" deliverable "no-git" 'test/accuracy/**/*.accuracy.ts'
+assert_rc  "non-repo, '**/' at depth 0 -> present" 0
+assert_contains "non-repo glob notes baseline unavailable" "baseline unavailable" "$OUT"
+run "$RS" deliverable "no-git" 'test/**/*.nothing.ts'
+assert_rc  "non-repo, '**/' with no match -> missing" 1
+cd "$REPO_ROOT"; cleanup "$od"
+
+# ---------------------------------------------------------------------------
 echo
 echo "----------------------------------------"
 printf 'Results: %d passed, %d failed\n' "$pass" "$fail"

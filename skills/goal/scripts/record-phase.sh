@@ -69,8 +69,9 @@
 #   On AUDIT_COMPLETE it adds the lines RELAY_RUN_COMPLETE copies: "⚠ Unresolved: …" (when a
 #   finding stayed open or a check was skipped), "Audit coverage: <re> re-verified, <tp>
 #   trust-prior (<pct>% re-verified)." (always — the percentage computed here, with a "⚠ Audit
-#   coverage: …" banner before it when trust-prior is over 30%), "Findings: …" (counted from
-#   FINDINGS.md) and "Checks: skipped (--lean) — …".
+#   coverage: …" banner before it when trust-prior is over 30%), "Design captures: …" (from the
+#   audit's line of that name; "⚠ Design captures: may be out of date …" when not retaken),
+#   "Findings: …" (counted from FINDINGS.md) and "Checks: skipped (--lean) — …".
 #   Exits 0 when recorded, 1 when STATE.md or the report file is missing, 2 on a usage error,
 #   3 when the report is invalid (treat it as a no-report dispatch).
 #
@@ -715,6 +716,18 @@ completion_lines() {
     out="$out${nl}⚠ Plan changed: $pc check fix(es) went against the plan summary — see $findings"
   fi
   out="$out${nl}$(coverage_line)"
+  # The audit retakes the design screenshots (PHASE-BRIEF.md audit step 4b): the owner compares
+  # them with the design after the run, and the checks after the polish phase can change screens.
+  # A retake that could not run is not a gap, so it is said here. No line = no design capture.
+  v="$(field_after AUDIT_COMPLETE 'Design captures')"
+  case "$v" in
+    "") ;;
+    [Rr]etaken*) out="$out${nl}Design captures: retaken at the end — compare $runroot/design-check/<id>.png with design/screens/<id>.png" ;;
+    [Nn]ot\ retaken*)
+      v="$(printf '%s' "$v" | sed -E 's/^[Nn]ot retaken[[:space:]]*[—–-]*[[:space:]]*//')"
+      out="$out${nl}⚠ Design captures: may be out of date — not retaken${v:+: $v}" ;;
+    *) out="$out${nl}Design captures: $v" ;;
+  esac
   if [ $((dcl + k + sk + pc)) -gt 0 ]; then
     v=""; [ "$pc" -gt 0 ] && v=" · $pc plan changes"
     out="$out${nl}Findings: $dcl cleanup deferred · $k correctness/security open · $sk checks skipped$v — $findings"

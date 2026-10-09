@@ -26,7 +26,8 @@
 #   The review modes also compute {{DIFF_RANGE}} (phase N's commits, found in git by their
 #   Relay-Phase trailer) and cleanup / security get {{COMMANDS}} (the deduplicated union of every
 #   phase spec's `## Mandatory commands`). No git, or no commit for the phase, degrades to a note
-#   the reviewer reports as a limit — never a failed dispatch.
+#   the reviewer reports as a limit — never a failed dispatch. The audit gets {{CAPTURE_CMD}}:
+#   the design capture command a phase evidence file records (`Capture command:`), to retake.
 #
 #   Template mechanics: a line that is exactly {{SPEC}} / {{CARRYOVER}} / {{MAP_SLICE}} /
 #   {{STATE_EXCERPT}} / {{MARKERS}} / {{COMMANDS}} is replaced by that section; `<!-- mode: a b -->` …
@@ -472,6 +473,26 @@ if [ "$mode" = "cleanup" ] || [ "$mode" = "security" ] || [ "$mode" = "security-
 fi
 [ -s "$tmp/commands" ] || echo "(no mandatory commands found in the phase specs — run the project's build, typecheck, lint and test commands)" > "$tmp/commands"
 
+# --- {{CAPTURE_CMD}} (audit) ----------------------------------------------------------------
+# The design capture's command, which the polish phase records as `Capture command: <cmd>` in
+# its evidence file: the audit re-runs it so the owner's screenshots show the build after the
+# review, tidy-up and security fixes (tunez's tidy-up changed 9 screens after the capture). The
+# highest phase that recorded one wins, and within a file the last line (its latest attempt).
+capture_cmd="none recorded"
+if [ "$mode" = "audit" ]; then
+  cap_n=-1
+  for f in "$phases"/phase-*.evidence.md; do
+    [ -e "$f" ] || continue
+    n="$(basename "$f")"
+    [[ "$n" =~ ^phase-([0-9]+)\.evidence\.md$ ]] || continue
+    n="${BASH_REMATCH[1]}"
+    c="$(sed -n 's/^[[:space:]]*Capture command:[[:space:]]*//p' "$f" | tail -1)"
+    c="$(printf '%s' "$c" | sed -E 's/[[:space:]]+$//; s/^`(.*)`$/\1/')"
+    [ -n "$c" ] || continue
+    if [ "$n" -gt "$cap_n" ]; then cap_n="$n"; capture_cmd="\`$c\` (recorded by phase $n)"; fi
+  done
+fi
+
 # --- expand the template ------------------------------------------------------------------
 keep=1
 : > "$out"
@@ -507,6 +528,10 @@ while IFS= read -r line || [ -n "$line" ]; do
   line="${line//'{{REPORT_PATH}}'/$report}"
   line="${line//'{{BRIEF_PATH}}'/$out}"
   line="${line//'{{DIFF_RANGE}}'/$diff_range}"
+  # spliced, not ${//}: bash 5.2 expands `&` in a replacement, and a command may hold `&&`
+  while [[ "$line" == *'{{CAPTURE_CMD}}'* ]]; do
+    line="${line%%'{{CAPTURE_CMD}}'*}${capture_cmd}${line#*'{{CAPTURE_CMD}}'}"
+  done
   line="${line//'{{LOG_DIR}}'/$runroot/$logdir}"
   printf '%s\n' "$line" >> "$out"
 done < "$template"

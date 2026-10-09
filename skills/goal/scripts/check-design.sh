@@ -409,7 +409,7 @@ if [[ $copy_count -gt 0 ]]; then
   kinds="$kinds S$k=copy"; k=$((k + 1))
 fi
 
-echo "- **S$k — Design: screens captured for review**: for each approved screen, \`$runroot/design-check/<id>.png\` exists, or the polish phase's evidence file records \`capture unavailable: <id> — <reason>\`; the capture code takes its output directory from \`RELAY_DESIGN_CHECK_DIR\`, so no run path is written into the product."
+echo "- **S$k — Design: screens captured for review**: for each approved screen, \`$runroot/design-check/<id>.png\` exists, or the polish phase's evidence file records \`capture unavailable: <id> — <reason>\`; the capture code takes its output directory from \`RELAY_DESIGN_CHECK_DIR\`, so no run path is written into the product, and the evidence file records the one command that takes them as \`Capture command: <command>\`, which the audit re-runs so the screenshots show the finished build."
 echo "  - Current: no captures exist."
 echo "  - Target: the owner can compare each built screen against \`design/screens/<id>.png\` after the run; the comparison itself is never a gate."
 echo "  - Acceptance: for each id, \`test -f $runroot/design-check/<id>.png\` exits 0 or \`grep -F 'capture unavailable: <id>' $runroot/phases/phase-*.evidence.md\` prints a line; and \`git grep --untracked -lF '.relay/' -- . ':!design' ':!.relay' ':!**/.gitignore'\` returns no files."

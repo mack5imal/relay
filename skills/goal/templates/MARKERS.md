@@ -262,6 +262,7 @@ Acceptance criteria: <pass count> pass / <0> fail / <trust count> trust-prior
 Deliverables: <present count> present / <0> missing
 Spec criteria: <met count> met / <0> not met / <trust count> trust-prior   (omit when no SPEC.md)
 Audit coverage: <re_verified> re-verified / <trust> trust-prior (<pct>% re-verified)
+Design captures: <retaken — <n> screens | not retaken — <reason>; run: <command>>   (omit when there is no design-capture criterion)
 ```
 
 ### `AUDIT_HANDOFF` (3 audit rounds all failed — stop)
@@ -300,12 +301,13 @@ RELAY_RUN_COMPLETE
 Audit coverage: <re_verified> re-verified, <trust_prior> trust-prior (<pct>% re-verified).   ← as record-phase.sh printed it
 All <N> phases complete. Audit passed in <rounds> round(s).
 Push: <the one line `relay-git.sh push` printed, verbatim>
+[Design captures: retaken at the end — compare <run-root>/design-check/<id>.png with design/screens/<id>.png]   ← only when record-phase.sh printed it (or its `⚠ Design captures: may be out of date — …` form)
 [Findings: <d> cleanup deferred · <k> correctness/security open · <s> checks skipped[ · <p> plan changes] — <run-root>/FINDINGS.md]   ← only when record-phase.sh printed it
 [Checks: skipped (--lean) — <phase reviews, tidy-up, security pass>]   ← only when record-phase.sh printed it
 Summary: <5 lines max — what shipped, what changed, what to verify manually; when the push failed or was skipped with a command, that command is one of the manual steps>
 ```
 
-The `⚠ Unresolved:`, `⚠ Plan changed:`, `Audit coverage:` (and its `⚠` banner), `Findings:` and `Checks:` lines are copied verbatim from what `record-phase.sh --audit` printed under its summary line — never recomputed. `<pct>` is the **re-verified** share, rounded down: a run that took nothing on trust reads 100%. The `Checks:` line is information, not a warning: the owner chose `--lean`.
+The `⚠ Unresolved:`, `⚠ Plan changed:`, `Audit coverage:` (and its `⚠` banner), `Design captures:`, `Findings:` and `Checks:` lines are copied verbatim from what `record-phase.sh --audit` printed under its summary line — never recomputed. `<pct>` is the **re-verified** share, rounded down: a run that took nothing on trust reads 100%. The `Checks:` line is information, not a warning: the owner chose `--lean`.
 
 `Push:` is `push: <branch> → <remote> (<n> commits)`, `push: skipped — <reason>` (`push: skipped — push is off for this run; run: <command>` when the run's `Push:` is off — the default), or `push: failed — <reason>; run: <command>`. A failed push never blocks completion: the run is complete, the owner pushes by hand.
 

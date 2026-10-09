@@ -127,6 +127,12 @@ fidelity script of its own. Source is every tracked and untracked file outside `
    output directory from `RELAY_DESIGN_CHECK_DIR` (the phase sets it to
    `<run-root>/design-check`), and the criterion also checks that no `.relay/` path appears in
    the product's source — a run's directory must never be baked into the code it builds.
+   The polish phase records the one command that takes them (`Capture command: <command>` in its
+   evidence file), and **the audit re-runs it** with the variable set: the review, tidy-up and
+   security fixes come after the polish phase and can change screens (tunez's tidy-up changed 9
+   after the captures, and the owner was sent to compare the old pictures). A retake that fails,
+   or a run with no recorded command, is never a gap — the run's last message says the
+   screenshots may be out of date and gives the command.
 
 Criteria 2–4 are drafted only when their section is present. Review the drafts like any other
 criterion — tighten a list, drop a component the spec already covers — then re-run
