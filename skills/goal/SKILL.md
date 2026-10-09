@@ -744,7 +744,8 @@ each stage):
 ```
 Design brief ready — it's on your clipboard. (File: <abs path to run root>/DESIGN-BRIEF.paste.md)
 
-What happens in Claude Design — four stages, each ending with a stop for you:
+Use any design tool or designer you like; the steps below are written for Claude Design.
+The design session runs in four stages, each ending with a stop for you:
   1. Three takes on `<anchor>` (<one-line reason>) — you pick one, or ask for new takes.
   2. Refine that take until the look is settled — palette, type, spacing, components.
   3. Every other screen and state is drawn in that look.
@@ -753,7 +754,7 @@ What happens in Claude Design — four stages, each ending with a stop for you:
   Tell it when you want something different from the brief — it keeps a list of those, and
   the plan adopts them in one confirmation instead of asking about each.
 
-1. Open Claude Design (or any design tool or designer) and paste the brief as your first message.
+1. Open your design tool (or send it to your designer) and paste the brief as your first message.
 2. Work through the four stages.
 3. Export the package, and put its contents — `HANDOFF.md`, `screens/`, … — in
    `<abs path>/<design dir>/` (created for you; the .zip itself is fine too).
@@ -763,12 +764,14 @@ What happens in Claude Design — four stages, each ending with a stop for you:
 Say **skip design** to plan without one, or **copy the brief** to put it on the clipboard again.
 ```
 
-For an addition, the overview's stage list reads: "What happens in Claude Design — three stages,
-each ending with a stop for you: 1. One take on `<anchor>` in the app's existing look — you say
-when it fits. 2. The other new screens and states, the same way. 3. You review, ask for changes,
-and say they're final — then it exports the package." and step 1 adds: "Attach the existing
-design first: `<abs path>/<existing package>/HANDOFF.md` and the pictures of `<existing
-screens>`." Its step 2 says "the three stages".
+For an addition, the overview's stage list reads: "Use any design tool or designer you like; the
+steps below are written for Claude Design. The design session runs in three stages, each ending
+with a stop for you: 1. One take on `<anchor>` in the app's existing look — you say when it fits.
+2. The other new screens and states, the same way. 3. You review, ask for changes, and say
+they're final — then it exports the package." and step 1 adds: "Share the existing design with
+it first — `<abs path>/<existing package>/HANDOFF.md` and the pictures of `<existing screens>`.
+In Claude Design, attach them to your first message; another tool or a designer needs the same
+files." Its step 2 says "the three stages".
 
 When `pbcopy` is missing or fails (Linux, a sandbox), replace the first line with `Design brief
 ready (<path>). Paste this into Claude Design — or any design tool or designer:` and print the
