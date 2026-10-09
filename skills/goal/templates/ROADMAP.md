@@ -21,7 +21,8 @@ must not drift apart — change the spec first, then re-derive the affected phas
 ## Assumptions
 
 Non-blocking decisions recorded here so we can proceed without round-trips — the *how*, not the
-*what*; anything that changes what gets built belongs in the spec. Includes any ambiguity
+*what*; anything that changes what gets built belongs in the spec, and a change to something the
+owner answered (or a constraint, or an outward-facing target) is asked, never assumed here. Includes any ambiguity
 dimension left below its minimum and any edge the probe left `unresolved`. If any are wrong, stop
 the run and tell us:
 
