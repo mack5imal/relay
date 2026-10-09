@@ -593,6 +593,7 @@ for m in review cleanup security; do
   done
   assert_contains "$m: relay's call is fixed and flagged" "A fix may change it: make the fix, and flag it as a \`[plan]\` bullet" "$B"
   assert_contains "$m: the owner's call is never overridden" "A fix never overrides it" "$B"
+  assert_contains "$m: a (planner) value in a criterion is relay's call" "or a value in a success criterion followed by \`(planner)\`" "$B"
   assert_contains "$m: [plan] bullet format" "- [plan] <file:line> — <what the fix changed> — changed: plan said" "$B"
 done
 run bash "$AB" "$w/run" --audit 1

@@ -173,6 +173,18 @@ run bash "$VS" "$(spec noplanner "$GOOD_CRIT" "$FLOOR")"
 assert_missing "no tag, no advisory" "decided by the planner" "$OUT"
 run bash "$VS" "$TEMPLATE"
 assert_missing "the template's placeholder example is not counted" "decided by the planner" "$OUT"
+P="$(spec values "$GOOD_CRIT" "$FLOOR
+| S1 | adjacency, precision | resolved | covered by the acceptance check |")"
+perl -0pi -e 's/(emits one parseable object)/$1 within 150 ms (planner) for inputs up to 2 MB (planner)/; s/- no new dependencies\n/- no new dependencies\n- Node 20 or later (planner)\n/' "$P"
+run bash "$VS" "$P"
+assert_rc "(planner) values still exit 0" 0
+assert_contains "counts each value and constraint" "3 value(s) in the success criteria or constraints were chosen by the planner" "$OUT"
+assert_contains "and points at the 6b line" "'Numbers I chose'" "$OUT"
+assert_missing "a value is not counted as scope" "out-of-scope item(s)" "$OUT"
+run bash "$VS" "$(spec novalues "$GOOD_CRIT" "$FLOOR")"
+assert_missing "no tagged values, no advisory" "chosen by the planner" "$OUT"
+run bash "$VS" "$TEMPLATE"
+assert_missing "the template's example value is not counted" "chosen by the planner" "$OUT"
 
 # ---------------------------------------------------------------------------
 echo

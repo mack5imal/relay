@@ -76,7 +76,8 @@ Quote path arguments — deliverable paths may contain spaces.
 
 ### Audit deliverable check
 
-For each `**Deliverables:**` bullet that names a path/glob:
+Each `**Deliverables:**` bullet is `` `path/or/glob` — what it is `` (`validate-phase.sh --roadmap`
+enforces it at planning time) or `none — <why>`. For each path, without its backticks:
 
 ```
 bash <run-root>/repo-state.sh deliverable "$(baseline)" "<path>"

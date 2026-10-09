@@ -2,21 +2,95 @@
 # validate-phase.sh — verify a phase spec has the required structure
 #
 # Usage: validate-phase.sh <path-to-phase-spec.md>
+#        validate-phase.sh --roadmap <path-to-ROADMAP.md>
 #
 # Exits 0 if the file has the required markers and sections.
 # Exits 1 with specific errors otherwise.
+#
+# --roadmap checks ROADMAP.md's `**Deliverables:**` lists instead. The audit checks every
+# deliverable against the repository (`repo-state.sh deliverable <path>`), so each bullet must
+# name a path or glob in backticks — `` `src/x.ts` — what it is `` — or be `none — <why>`.
+# tunez's 19 phases each wrote "see `phases/phase-N.md` §Work — …" on the heading line, and
+# the audit had to rebuild 146 deliverables from the specs' prose.
 
 set -uo pipefail
 
-if [[ $# -lt 1 ]]; then
+usage() {
   echo "usage: validate-phase.sh <path-to-phase-spec.md>" >&2
+  echo "       validate-phase.sh --roadmap <path-to-ROADMAP.md>" >&2
   exit 2
+}
+
+[[ $# -ge 1 ]] || usage
+roadmap=0
+if [[ "$1" == "--roadmap" ]]; then
+  [[ $# -ge 2 ]] || usage
+  roadmap=1; shift
 fi
 
 f="$1"
 if [[ ! -f "$f" ]]; then
   echo "validate-phase.sh: file not found: $f" >&2
   exit 2
+fi
+
+if (( roadmap )); then
+  # One record per finding: E|<message> (error), W|<message> (warning), S|<phases>|<deliverables>.
+  out="$(awk '
+    function flush() {
+      if (ph == "") return
+      if (tmpl) { if (!seen) print "W|" ph ": template phase — no **Deliverables:** list yet"; nphase++; return }
+      if (!seen) print "E|" ph ": no **Deliverables:** list — add one bullet per file or glob the phase creates or changes"
+      else if (nb == 0) print "E|" ph ": **Deliverables:** has no bullets — one `path/or/glob` per line, or `none — <why>`"
+      nphase++
+    }
+    function bullet(b,   r, i, span, rest) {
+      if (b ~ /\{\{/) { print "W|" ph ": deliverable still holds a template placeholder: " b; return }
+      if (tolower(b) ~ /^none[ \t]+(—|–|-)[ \t]*[^ \t]/) { ndel++; return }
+      if (substr(b, 1, 1) != "`") { print "E|" ph ": deliverable does not start with a path in backticks: \"" b "\" — write `path/or/glob` — what it is"; return }
+      r = substr(b, 2); i = index(r, "`")
+      if (i < 2) { print "E|" ph ": deliverable has an empty or unclosed path: \"" b "\""; return }
+      span = substr(r, 1, i - 1); rest = substr(r, i + 1)
+      if (span ~ /^phases\// || span ~ /\.relay\// || index(b, "§")) { print "E|" ph ": deliverable points at a plan file instead of naming one: \"" b "\" — list the files that phase creates or changes"; return }
+      if (rest !~ /^[ \t]*$/ && rest !~ /^[ \t]+(—|–|-)[ \t]+[^ \t]/) { print "E|" ph ": deliverable has text after the path that is not \" — <what it is>\": \"" b "\""; return }
+      ndel++
+    }
+    /^## / {
+      flush(); ph = ""; seen = 0; nb = 0; inlist = 0
+      tmpl = ($0 ~ /\{\{/)
+      if ($0 ~ /^## Phase[ \t]+([0-9]+|N)([ \t]|$)/) { ph = $0; sub(/^## /, "", ph); sub(/[ \t]+(—|–|-).*/, "", ph) }
+      next
+    }
+    ph == "" { next }
+    /^\*\*Deliverables:\*\*/ {
+      seen = 1; inlist = 1; t = $0; sub(/^\*\*Deliverables:\*\*[ \t]*/, "", t)
+      if (t != "") print "E|" ph ": **Deliverables:** has text on the heading line: \"" t "\" — put each path or glob on its own `- ` bullet"
+      next
+    }
+    inlist && /^[ \t]*-[ \t]+/ { b = $0; sub(/^[ \t]*-[ \t]+/, "", b); sub(/[ \t]+$/, "", b); nb++; bullet(b); next }
+    inlist && /^[ \t]*$/ { if (nb > 0) inlist = 0; next }
+    inlist { inlist = 0 }
+    END { flush(); print "S|" nphase + 0 "|" ndel + 0 }
+  ' "$f")"
+  errors=0
+  while IFS= read -r rec; do
+    case "$rec" in
+      E\|*) echo "❌ $f: ${rec#E|}" >&2; errors=$((errors + 1)) ;;
+      W\|*) echo "⚠️  $f: ${rec#W|}" >&2 ;;
+      S\|*) summary="${rec#S|}" ;;
+    esac
+  done <<< "$out"
+  nphase="${summary%%|*}"; ndel="${summary#*|}"
+  if [[ "$nphase" -eq 0 ]]; then
+    echo "❌ $f: no '## Phase <n> — <name>' sections" >&2
+    errors=$((errors + 1))
+  fi
+  if (( errors > 0 )); then
+    echo "✗ $f: $errors deliverable error(s)" >&2
+    exit 1
+  fi
+  echo "✓ $f: deliverables ok ($nphase phases, $ndel deliverables)"
+  exit 0
 fi
 
 errors=0

@@ -195,6 +195,66 @@ assert_eq "--json lists every missing pair" "5" "$MISSING"
 
 # ---------------------------------------------------------------------------
 echo
+echo "[8] Signals the old patterns missed, and words that are not signals"
+E="$(edges_for '≥ 99% of voiced frames are within ±5¢')"
+assert_contains "≥ and % register as numeric (\\b never fired around them)" "boundary" "$E"
+E="$(edges_for 'the in-tune judgement holds at 9/10/11¢')"
+assert_contains "a ¢ value is numeric" "adjacency" "$E"
+E="$(edges_for 'the e2e test writes `reports/latency.json` with the measured delay')"
+assert_missing "a file name in backticks is not a text shape" "encoding" "$E"
+E="$(edges_for 'each command exits 0 and every check passes')"
+assert_eq "generic quantifiers raise nothing" "" "$E"
+E="$(edges_for 'the in-tune state shows the note name over the gauge')"
+assert_eq "state / name / over are not shapes" "" "$E"
+E="$(edges_for 'note names are spelled with sharps or flats to suit the key')"
+assert_contains "spelling is a text signal" "encoding" "$E"
+E="$(edges_for 'a double tap starts one session')"
+assert_contains "a double tap is a concurrency signal" "concurrency" "$E"
+assert_contains "and a repeat" "idempotency" "$E"
+E="$(edges_for 'the report fetches the latest numbers from the API')"
+assert_missing "a network read alone is not asked about races" "concurrency" "$E"
+
+# ---------------------------------------------------------------------------
+echo
+echo "[9] The tunez criteria (tests/fixtures/edge-probe/tunez-SPEC.md): relevant edges raised, nonsense not"
+# The tunez planning run raised 136 edges over these 22 criteria (~77% of all pairs); a third were
+# dismissed as nonsense — `encoding` on latency because of `latency.json`, `concurrency` on the
+# engineering gate because of "each command". Expected sets below are hand-judged per criterion:
+# MUST = edges the criterion is really about; NEVER = edges with no reading for it.
+run python3 "$EP" --from-spec "$REPO_ROOT/tests/fixtures/edge-probe/tunez-SPEC.md" --json
+assert_rc "exits 0" 0
+TZ="$OUT"
+tz() {  # tz <criterion> -> its raised edges, space separated
+  printf '%s' "$TZ" | python3 -c 'import json,sys; print(" ".join(e["edge"] for e in json.load(sys.stdin)["edges"] if e["criterion"]==sys.argv[1]))' "$1"
+}
+expect() {  # expect <criterion> "<must edges>" "<never edges>"
+  local got e
+  got=" $(tz "$1") "
+  for e in $2; do case "$got" in *" $e "*) ok "$1 raises $e";; *) no "$1 raises $e" "got [$got]";; esac; done
+  for e in $3; do case "$got" in *" $e "*) no "$1 never raises $e" "got [$got]";; *) ok "$1 never raises $e";; esac; done
+}
+expect S1  "boundary adjacency precision" "encoding concurrency"
+expect S2  "boundary adjacency precision" "encoding concurrency idempotency"
+expect S3  "boundary adjacency precision" "encoding concurrency idempotency"
+expect S4  "boundary adjacency precision" "encoding concurrency idempotency"
+expect S5  "boundary adjacency precision" "encoding"
+expect S6  "encoding" "concurrency"
+expect S7  "boundary idempotency concurrency" "encoding"
+expect S9  "empty ordering boundary" "encoding"
+expect S10 "boundary idempotency concurrency" "encoding"
+expect S11 "" "boundary adjacency precision encoding"
+expect S12 "boundary" "encoding concurrency"
+expect S14 "boundary adjacency" "encoding concurrency idempotency"
+expect S16 "" "boundary empty encoding ordering idempotency concurrency"
+expect S18 "" "boundary adjacency precision concurrency"
+expect S20 "encoding" "concurrency precision adjacency"
+expect S21 "" "encoding concurrency idempotency precision"
+expect S22 "boundary adjacency" "encoding"
+TOTAL="$(printf '%s' "$TZ" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["edges"]))')"
+if [ "$TOTAL" -le 90 ]; then ok "the whole spec raises at most 90 edges (was 136; now $TOTAL)"; else no "the whole spec raises at most 90 edges" "got $TOTAL"; fi
+
+# ---------------------------------------------------------------------------
+echo
 echo "----------------------------------------"
 printf 'Results: %d passed, %d failed\n' "$pass" "$fail"
 if [ "$fail" -gt 0 ]; then

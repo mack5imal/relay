@@ -81,6 +81,21 @@ assert_missing "an atomic publish of a local file is not outside the repo" "(out
 assert_missing "\"accounting\" is not an account" "(outside the repo): per-thread totals" "$RW"
 assert_contains "npm publish is outside the repo" "(outside the repo): \`npm publish --dry-run\`" "$RW"
 assert_contains "publishing to a registry is outside the repo" "(outside the repo): the release is published to PyPI" "$RW"
+# The tunez rubric: 7 flags, all false — words inside commands, and two prose words.
+cp -R "$FIX" "$W/tz"
+perl -0pi -e 's/(- the parser returns 3 rows[^\n]*\n)/$1- `grep -rE '"'"'https?:\/\/'"'"' dist\/assets\/*.css` prints nothing (no remote font or asset URLs)\n- e2e: a 5 s song stopped manually routes to the too-short state\n- `vite preview` answers `curl -sI http:\/\/localhost:4173\/` with HTTP 200\n- `DEPLOY.md` contains `vercel link --project x`, `vercel deploy`, and the line that the owner runs them by hand\n- `.vercel\/` is gitignored and `test ! -d .vercel` succeeds (no `vercel` command was run)\n- the evidence file contains no `vercel` command\n- `DEPLOY.md` still holds the `vercel deploy` command\n- `curl -sf https:\/\/example.com\/health` exits 0\n- the owner checks the layout by hand\n/' "$W/tz/phases/phase-1.md"
+run bash "$BR" "$W/tz"
+assert_contains "the tunez wording adds two real flags, no false ones" "rubric: 17 criteria across 3 phases, 4 flagged" "$OUT"
+RT="$(cat "$W/tz/RUBRIC.md")"
+assert_missing "a URL inside a grep pattern is not outside the repo" "(outside the repo): \`grep -rE" "$RT"
+assert_missing "\"stopped manually\" is not a manual check" "(human eye): e2e: a 5 s song" "$RT"
+assert_missing "curl to localhost is inside the repo" "(outside the repo): \`vite preview\`" "$RT"
+assert_missing "a command a file contains is not run" "(outside the repo): \`DEPLOY.md\` contains" "$RT"
+assert_missing "nor one that must not run" "(outside the repo): \`.vercel/\`" "$RT"
+assert_missing "nor one named as absent" "(outside the repo): the evidence file" "$RT"
+assert_missing "nor one a file still holds" "(outside the repo): \`DEPLOY.md\` still holds" "$RT"
+assert_contains "curl to a remote host is outside the repo" "(outside the repo): \`curl -sf https://example.com/health\`" "$RT"
+assert_contains "checked by hand is a human check" "(human eye): the owner checks the layout by hand" "$RT"
 
 # ---------------------------------------------------------------------------
 echo
