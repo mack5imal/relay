@@ -5,6 +5,7 @@
 #                          [--theme <path>] [--allow <glob>]... [--except <SPEC.md>]
 #        check-design.sh <design-dir> --verify <screens|components|tokens|copy|all>
 #                          [--theme <path>] [--allow <glob>]... [--except <SPEC.md>]
+#                          [--screen <id>]...      (copy only)
 #
 # Why this exists: Stage 2.7 hands the user a design brief and stops. They come back with a
 # package from Claude Design (recommended) or any other tool or designer, committed at design/.
@@ -46,7 +47,16 @@
 #                          appears outside --theme and the --allow globs (files generated from
 #                          the theme, e.g. index.html's theme-color)
 #              copy        each §Copy string, split on {name} placeholders, has every fragment of
-#                          3+ characters present verbatim, a one-word fragment as a whole word
+#                          3+ characters present verbatim, a one-word fragment as a whole word —
+#                          outside code comments: comments are stripped first (tunez's builders
+#                          planted strings in JSDoc to pass it). Tests still count — a test that
+#                          checks the screen shows the words is real evidence, and copy the app
+#                          assembles from parts is often verbatim only there (tunez: skipping
+#                          tests failed 39 strings the app does show). `(e.g. …)` examples on a
+#                          copy bullet are sample values, never required.
+#                          --screen <id> (repeatable) checks only the strings under `### <id>` in
+#                          §Copy, so the phase that builds a screen gates its own copy instead of
+#                          the last screen phase inheriting every earlier miss (tunez: 58).
 #            --except reads SPEC.md's `## Design reconciliation` rows resolved "spec wins" and
 #            exempts the `screen:` / `component:` / `token:` / `copy:` item each names.
 #
@@ -59,13 +69,13 @@ set -uo pipefail
 
 usage() {
   echo "usage: check-design.sh <design-dir> [--criteria] [--start <k>] [--run-root <path>] [--theme <path>] [--allow <glob>]... [--except <SPEC.md>]" >&2
-  echo "       check-design.sh <design-dir> --verify <screens|components|tokens|copy|all> [--theme <path>] [--allow <glob>]... [--except <SPEC.md>]" >&2
+  echo "       check-design.sh <design-dir> --verify <screens|components|tokens|copy|all> [--theme <path>] [--allow <glob>]... [--except <SPEC.md>] [--screen <id>]..." >&2
   exit 2
 }
 
 [[ $# -ge 1 && -n "$1" ]] || usage
 dir="${1%/}"; shift
-criteria=0; start=1; runroot="<run-root>"; verify=""; theme=""; allows=(); except_spec=""
+criteria=0; start=1; runroot="<run-root>"; verify=""; theme=""; allows=(); except_spec=""; only=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --criteria) criteria=1; shift ;;
@@ -73,6 +83,7 @@ while [[ $# -gt 0 ]]; do
     --theme) [[ $# -ge 2 && -n "$2" ]] || usage; theme="$2"; shift 2 ;;
     --allow) [[ $# -ge 2 && -n "$2" ]] || usage; allows+=("$2"); shift 2 ;;
     --except) [[ $# -ge 2 && -n "$2" ]] || usage; except_spec="$2"; shift 2 ;;
+    --screen) [[ $# -ge 2 && -n "$2" ]] || usage; only+=("$2"); shift 2 ;;
     --start) [[ $# -ge 2 && "$2" =~ ^[0-9]+$ ]] || usage; start="$2"; shift 2 ;;
     --run-root) [[ $# -ge 2 && -n "$2" ]] || usage; runroot="${2%/}"; shift 2 ;;
     *) usage ;;
@@ -80,12 +91,15 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -d "$dir" ]] || { echo "check-design.sh: no design directory at $dir" >&2; exit 2; }
 [[ -z "$verify" || $criteria -eq 0 ]] || usage
+[[ ${#only[@]} -eq 0 || "$verify" == copy ]] || usage
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 handoff="$dir/HANDOFF.md"
 errors=0; warnings=0
 err()  { echo "❌ $*"; errors=$((errors + 1)); }
 warn() { echo "⚠  $*"; warnings=$((warnings + 1)); }
+
+join_sp() { local IFS=' '; printf '%s' "$*"; }
 
 # section <name> — the body of `## <name>` (case-insensitive), up to the next `## ` heading
 section() {
@@ -124,7 +138,7 @@ hexes() {
   printf '%s\n' "$1" | grep -oE '#[0-9A-Fa-f]+' | grep -xE '#([0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})'
 }
 
-ids=(); tokens=(); values=(); components=(); copies=(); copy_count=0
+ids=(); tokens=(); values=(); components=(); copies=(); copy_screen=(); copy_count=0
 
 if [[ ! -f "$handoff" ]]; then
   err "no $handoff — the package needs HANDOFF.md with ## Approved screens and ## Screens"
@@ -183,8 +197,17 @@ else
     warn "no ## Components section — no component criterion (recommended: one bullet per name)"
   fi
   if has_section "Copy"; then
-    while IFS= read -r c; do copies+=("$c"); done < <(
-      section "Copy" | grep -E '^[[:space:]]*[-*]' | grep -oE '`[^`]+`' | sed 's/^`//; s/`$//'
+    # One record per string: "<screen id>\x1f<string>" (screen empty above the first `### <id>`).
+    # A non-whitespace separator, so `read` keeps an empty first field.
+    while IFS=$'\x1f' read -r sid c; do copies+=("$c"); copy_screen+=("$sid"); done < <(
+      section "Copy" | awk '
+        /^###[[:space:]]/ { s = $0; sub(/^###[[:space:]]+/, "", s); gsub(/`/, "", s); sub(/[[:space:]].*/, "", s); sid = s; next }
+        /^[[:space:]]*[-*]/ {
+          l = $0
+          # `{key}` (e.g. `F major`, `E minor`): the examples are sample values, not wording.
+          while (match(l, /\((e\.g\.|eg\.|for example)[^)]*\)/)) l = substr(l, 1, RSTART - 1) substr(l, RSTART + RLENGTH)
+          while (match(l, /`[^`]+`/)) { printf "%s\037%s\n", sid, substr(l, RSTART + 1, RLENGTH - 2); l = substr(l, RSTART + RLENGTH) }
+        }'
     )
     copy_count=${#copies[@]}
     [[ $copy_count -gt 0 ]] || warn "## Copy has no backticked strings — no copy criterion"
@@ -231,6 +254,13 @@ if [[ -n "$verify" ]]; then
     done < "$exfile.rows"
     rm -f "$exfile.rows"
   fi
+
+  for o in ${only[@]+"${only[@]}"}; do
+    known=0; for id in ${ids[@]+"${ids[@]}"}; do [[ "$id" == "$o" ]] && known=1; done
+    [[ $known -eq 1 ]] || { echo "check-design.sh: --screen '$o' is not an approved screen in $handoff" >&2; rm -f "$exfile"; exit 2; }
+    listed=0; for sid in ${copy_screen[@]+"${copy_screen[@]}"}; do [[ "$sid" == "$o" ]] && listed=1; done
+    [[ $listed -eq 1 ]] || echo "⚠  copy: no strings listed under '### $o' in ## Copy"
+  done
 
   # Source files, NUL-separated, relative to $top.
   srclist="$(mktemp)"
@@ -302,8 +332,26 @@ if [[ -n "$verify" ]]; then
   fi
 
   if [[ "$verify" == copy || "$verify" == all ]]; then
+    # Copy is matched with comments stripped, so a string planted in a JSDoc line no longer
+    # passes (tunez: `Yesterday · …` lived only in a comment). Tests are kept: a test asserting
+    # the rendered text is evidence, and text assembled from parts is often whole only there.
+    # Screens / components / tokens keep the raw source — a `design: <id>` marker is itself a
+    # comment. Stripped: block comments (JSX `{/* */}`
+    # included) that open after whitespace or `{ ; ( , =` — so a glob string like "src/*" never
+    # opens one; HTML comments; and `//` line comments after whitespace — "http://…" has a ":".
+    cstream="$(mktemp)"
+    (cd "$top" && xargs -0 perl -0777 -ne 'next unless -T $ARGV;
+          s#(^|[\s{;(,=])/\*.*?\*/#$1 #gs;
+          s#<!--.*?--># #gs;
+          s#(^|[ \t])//[^\n]*#$1#gm;
+          print $_, "\n"' < "$srclist") > "$cstream" 2>/dev/null
     frags="$(mktemp)"; : > "$frags"
-    for c in ${copies[@]+"${copies[@]}"}; do
+    for i in "${!copies[@]}"; do
+      c="${copies[$i]}"
+      if [[ ${#only[@]} -gt 0 ]]; then
+        want=0; for o in "${only[@]}"; do [[ "${copy_screen[$i]}" == "$o" ]] && want=1; done
+        [[ $want -eq 1 ]] || continue
+      fi
       grep -qxF -- "$c" "$exfile" 2>/dev/null && continue
       vchecked=$((vchecked + 1))
       printf '%s\n' "$c" | awk '{ gsub(/\{[^}]*\}/, "\n"); print }' \
@@ -321,19 +369,20 @@ if [[ -n "$verify" ]]; then
       [[ $kind == phrases ]] && { list="$phrases"; wflag=""; }
       [[ -s "$list" ]] || continue
       found="$(mktemp)"
-      (cd "$top" && xargs -0 grep -ohIF $wflag -f "$list" -- < "$srclist" 2>/dev/null) | sort -u > "$found"
+      grep -ohF $wflag -f "$list" -- "$cstream" 2>/dev/null | sort -u > "$found"
       while IFS= read -r fr; do
         grep -qxF -- "$fr" "$found" && continue
         # -o reports non-overlapping leftmost matches, so a fragment inside a longer one can hide.
-        [[ -n "$(files_with -F $wflag -e "$fr" | head -1)" ]] || vbad "copy: \"$fr\" — not found $([[ -n $wflag ]] && printf 'as a whole word' || printf 'verbatim') in source"
+        grep -F $wflag -e "$fr" -- "$cstream" >/dev/null 2>&1 || vbad "copy: \"$fr\" — not found $([[ -n $wflag ]] && printf 'as a whole word' || printf 'verbatim') in source (code comments do not count)"
       done < "$list"
       rm -f "$found"
     done
-    rm -f "$frags" "$words" "$phrases"
+    rm -f "$frags" "$words" "$phrases" "$cstream"
   fi
 
   rm -f "$srclist" "$exfile"
-  echo "verify $verify: $vchecked checked, $vfail failed"
+  scope=""; [[ ${#only[@]} -gt 0 ]] && scope=" ($(join_sp "${only[@]}"))"
+  echo "verify $verify$scope: $vchecked checked, $vfail failed"
   [[ $vfail -eq 0 ]] && exit 0 || exit 1
 fi
 
@@ -402,10 +451,10 @@ if [[ ${#tokens[@]} -gt 0 ]]; then
 fi
 
 if [[ $copy_count -gt 0 ]]; then
-  echo "- **S$k — Design: copy matches the design**: all $copy_count strings in \`design/HANDOFF.md\` §Copy appear verbatim in source outside \`design/\`."
+  echo "- **S$k — Design: copy matches the design**: all $copy_count strings in \`design/HANDOFF.md\` §Copy appear verbatim in source outside \`design/\` — text that appears only in a code comment does not count."
   echo "  - Current: the copy exists only in the design package."
-  echo "  - Target: the built UI uses the designed wording."
-  echo "  - Acceptance: \`$vcmd --verify copy$vargs\` exits 0 (each string split on \`{name}\` placeholders; every fragment of 3+ characters present verbatim, a one-word fragment as a whole word — one-word strings are only presence-checked, so their rendering is left to the post-run screen comparison). $exnote"
+  echo "  - Target: the built UI uses the designed wording; each screen's phase checks its own strings with \`--screen <id>\`."
+  echo "  - Acceptance: \`$vcmd --verify copy$vargs\` exits 0 (each string split on \`{name}\` placeholders; every fragment of 3+ characters present verbatim, a one-word fragment as a whole word — one-word strings are only presence-checked, so their rendering is left to the post-run screen comparison; \`(e.g. …)\` examples are sample values, not required). $exnote"
   kinds="$kinds S$k=copy"; k=$((k + 1))
 fi
 

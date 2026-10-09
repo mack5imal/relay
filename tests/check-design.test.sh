@@ -453,6 +453,47 @@ assert_missing "criteria still leave no edge unresolved" "| unresolved |" "$OUT"
 
 # ---------------------------------------------------------------------------
 echo
+echo "[5g] Copy per screen; comments do not count; tests do; (e.g. …) examples are not required"
+built vscreen
+run bash "$CD" "$R/design" --verify copy --screen heads-up
+assert_rc "one screen's copy passes" 0
+assert_contains "only that screen's strings are checked" "verify copy (heads-up): 1 checked, 0 failed" "$OUT"
+printf '// design: heads-up\nconst s = "Hip reset soon";\n' > "$R/src/HeadsUp.tsx"
+run bash "$CD" "$R/design" --verify copy --screen settings
+assert_rc "another screen's miss does not fail this screen" 0
+run bash "$CD" "$R/design" --verify copy --screen heads-up --screen settings
+assert_rc "--screen repeats; the miss is in scope now" 1
+assert_contains "names the missing string" '"Hip reset in a minute" — not found verbatim' "$OUT"
+assert_contains "and the screens checked" "verify copy (heads-up settings): 2 checked, 1 failed" "$OUT"
+run bash "$CD" "$R/design" --verify copy --screen nope
+assert_rc "an unknown screen is a usage error" 2
+assert_contains "naming it" "--screen 'nope' is not an approved screen" "$OUT"
+run bash "$CD" "$R/design" --verify screens --screen overlay
+assert_rc "--screen with another aspect is a usage error" 2
+printf '// design: heads-up\n// "Hip reset in a minute"\n/* Hip reset in a minute */\nconst s = "x"; {/* Hip reset in a minute */}\n<!-- Hip reset in a minute -->\n' > "$R/src/HeadsUp.tsx"
+run bash "$CD" "$R/design" --verify copy --screen heads-up
+assert_rc "a string only in comments does not count" 1
+assert_contains "and the message says why" "code comments do not count" "$OUT"
+printf '// design: heads-up\nconst s = render(parts);\n' > "$R/src/HeadsUp.tsx"
+mkdir -p "$R/e2e"; printf 'expect(page.getByText("Hip reset in a minute")).toBeVisible();\n' > "$R/e2e/headsup.spec.ts"
+run bash "$CD" "$R/design" --verify copy --screen heads-up
+assert_rc "a test asserting the text counts (copy assembled from parts is often whole only there)" 0
+rm "$R/e2e/headsup.spec.ts"
+printf '// design: heads-up\nconst u = "https://example.com/a"; const s = "Hip reset in a minute";\n' > "$R/src/HeadsUp.tsx"
+run bash "$CD" "$R/design" --verify copy --screen heads-up
+assert_rc "// inside a URL is not a comment" 0
+printf 'const g = "src/*.ts"; const s = "Hip reset in a minute"; /* real comment */\n' > "$R/src/HeadsUp.tsx"
+printf '// design: heads-up\n' >> "$R/src/HeadsUp.tsx"
+run bash "$CD" "$R/design" --verify copy --screen heads-up
+assert_rc "a glob string never opens a block comment" 0
+printf '\n- `{key}` (e.g. `F major`, `E minor`)\n- `Pick a key` (for example `Pick a key`)\n' >> "$R/design/HANDOFF.md"; g add -A design && g commit -qm x
+printf 'const k = "Pick a key";\n' > "$R/src/Key.tsx"
+run bash "$CD" "$R/design" --verify copy --screen settings
+assert_rc "(e.g. …) examples are not required" 0
+assert_missing "F major is not checked" "F major" "$OUT"
+
+# ---------------------------------------------------------------------------
+echo
 echo "[6] Usage errors"
 run bash "$CD"
 assert_rc "no args exits 2" 2
