@@ -158,7 +158,7 @@ Write detected tools to `$RELAY_ROOT/tools.md`. Stage 2.6 and the phase goals re
 
 ### Resume detection
 
-If you resolved to resume a run in "Claim the run namespace", read its `$RELAY_ROOT/STATE.md`. If `Status` is `AWAITING_DESIGN`, the planner stopped at Stage 2.7 for a design: print "Resuming Relay at design verification (`$RELAY_ROOT`)", take `<design dir>` from `STATE.md`'s `**Design dir:**` line (`design` when it has none), and go to Stage 2.7 step d. If `Status` is `IN_PROGRESS` / `READY_TO_DISPATCH` / `BLOCKED` with a phase pending, **do not re-plan**. Print a one-line "Resuming Relay from phase N (`$RELAY_ROOT`)" and jump straight to Stage 6 (plan review) with the existing artifacts, or directly to Stage 7 (dispatch) if the user confirms resume.
+If you resolved to resume a run in "Claim the run namespace", read its `$RELAY_ROOT/STATE.md`. If `Status` is `AWAITING_DESIGN`, the planner stopped at Stage 2.7 for a design: print "Resuming Relay at design verification (`$RELAY_ROOT`)", take `<design dir>` from `STATE.md`'s `**Design dir:**` line (`design` when it has none) and the paths the design checks skip from its `**Design reference:**` line (none when it has none), and go to Stage 2.7 step d. If `Status` is `IN_PROGRESS` / `READY_TO_DISPATCH` / `BLOCKED` with a phase pending, **do not re-plan**. Print a one-line "Resuming Relay from phase N (`$RELAY_ROOT`)" and jump straight to Stage 6 (plan review) with the existing artifacts, or directly to Stage 7 (dispatch) if the user confirms resume.
 
 ---
 
@@ -237,6 +237,25 @@ it.", with options **Design stage (Recommended)** (a brief written for adding to
 look — no fresh directions; it hands the designer the existing colours, components and screens) ·
 **I already have the new screens' design** (I'll put it in `design/<feature-name>/`) · **No design
 stage**. Exit 1 means that name already holds a package — pick another.
+
+**A look that is not a relay package.** Most apps that predate relay keep their design elsewhere —
+`design-dir.sh` lists each candidate as `elsewhere: <path> — <n> images, <m> design docs` (a
+design-tool export, a mockups folder, a DESIGN.md with a token table) — or only in the code (a
+theme file and the screens already built). Either way the new screens have a look to match, and
+the old material must not be read as the app's code. So when there are `elsewhere:` lines, or the
+task adds screens to an app that already has some, ask instead: "This app already has a look —
+`<path>` (<n> screenshots, a colour list). Design the new screens to match it?" (no `elsewhere:`
+line: "This app already has a look in its code. Design the new screens to match it?"; several:
+name the likeliest and list the rest in the question). Options: **Design stage, matching it
+(Recommended)** (a brief for adding to an existing app: one take in the current look, from its
+colours, components and screens; relay's design checks skip `<path>` and never move or edit it) ·
+**Design stage, fresh look** (the new-app brief, three takes; `<path>` is still skipped) · **I
+already have the new screens' design** (I'll put it in `<design dir>/`) · **No design stage**. The
+owner's Other ("that folder is an old design", "it's in `docs/ui/`") settles which paths are the
+design. Record the confirmed paths as the `Design reference:` value (comma-separated; `theme`
+for a look only in code; `none`), and whether the brief matches the current look. With an
+`existing:` package as well, the addition question above comes first and these paths are named
+in it.
 
 **Missing research tools.** When `RESEARCH_TOOLS` has no `web` (WebSearch unavailable), ask —
 in the same `AskUserQuestion` call as the design question when both apply — header "Research",
@@ -700,14 +719,18 @@ is cheaper than reconciling it afterwards. Leave the "How we'll work" section yo
 written: the stages let the user settle the look on one screen before every screen is
 drawn, and `check-design.sh` verifies the hand-back contract.
 
-**An addition to an existing design** (`design-dir.sh` printed `existing:` lines) uses the
-brief's addition variant: keep `## How we'll work — adding to an existing app` and `## The
-existing design system`, delete the plain `## How we'll work` (for a new app, delete those two
-instead — the template's comment says so). Fill the existing system from the existing package's
-`HANDOFF.md` by section (`## Design tokens`, `## Components`; `grep -n '^## '` first) or, with no
-package, from the theme file; name the existing screens the new ones sit beside, with their PNG
-paths — the user attaches those files in the design tool. One take of the anchor, not three: the
-look is settled. A screen the feature changes is drawn again under its existing id.
+**An addition to an existing design** (`design-dir.sh` printed `existing:` lines, or the owner
+chose **matching it** at Stage 1) uses the brief's addition variant: keep `## How we'll work —
+adding to an existing app` and `## The existing design system`, delete the plain `## How we'll
+work` (for a new app, delete those two instead — the template's comment says so). Fill the
+existing system from, in order: the existing package's `HANDOFF.md` by section (`## Design
+tokens`, `## Components`); the `Design reference:` paths — their token or colour list and
+component names (`grep -n '^#'` and `grep -n '#[0-9A-Fa-f]\{6\}'` first, then the ranges; never
+a mockup's HTML or script whole); or, for `theme`, the theme file recon found. Name the existing
+screens the new ones sit beside, with their picture paths when the material has them — the user
+attaches those files in the design tool; for `theme` there are none, so the overview asks the
+owner for screenshots of those screens from the running app. One take of the anchor, not three:
+the look is settled. A screen the feature changes is drawn again under its existing id.
 
 **The anchor screen** is where the design direction is set — three takes on it, then
 refinement, before any other screen exists. Pick the product's **canonical** screen: its home,
@@ -719,7 +742,8 @@ design tool. For an addition, the anchor is the new screen the user will see mos
 main screen.
 
 **b. Park the run.** `cp "$RELAY_DIR/templates/STATE.md" "$RELAY_ROOT/STATE.md"`, fill the title,
-`Run root:`, `Memory dir:` and `Design dir:` (`<design dir>`), and set `Status: AWAITING_DESIGN`. That makes the run visible to
+`Run root:`, `Memory dir:`, `Design dir:` (`<design dir>`) and `Design reference:` (Stage 1's
+value), and set `Status: AWAITING_DESIGN`. That makes the run visible to
 Stage 0's active-run scan, so a new session can resume it. Stage 5 fills this file in rather than
 re-copying it.
 
@@ -771,7 +795,10 @@ with a stop for you: 1. One take on `<anchor>` in the app's existing look — yo
 they're final — then it exports the package." and step 1 adds: "Share the existing design with
 it first — `<abs path>/<existing package>/HANDOFF.md` and the pictures of `<existing screens>`.
 In Claude Design, attach them to your first message; another tool or a designer needs the same
-files." Its step 2 says "the three stages".
+files." Its step 2 says "the three stages". With a `Design reference:` folder instead of a
+package, step 1 names that folder's token or colour doc and pictures; with `theme`, it says "Take
+screenshots of `<existing screens>` from the running app and share them first — the brief lists
+the app's colours and components, but not what its screens look like."
 
 When `pbcopy` is missing or fails (Linux, a sandbox), replace the first line with `Design brief
 ready (<path>). Paste this into Claude Design — or any design tool or designer:` and print the
@@ -823,6 +850,25 @@ picture unless it reads like a placeholder. Apply each answer to `## Copy`, log 
 interview log, then re-run `prepare-design.sh "<design dir>"` (it commits the change) and
 `check-design.sh "<design dir>"`.
 
+**What the app already holds of the design.** On an app that already has code, run, before
+drafting the criteria:
+
+```bash
+bash "$RELAY_DIR/scripts/check-design.sh" "<design dir>" --overlap [--ignore <Design reference path>]...
+```
+
+It lists every file outside `design/` that already holds one of the package's colour values or
+copy strings (at most 60 lines; skip a whole folder and re-run when it says there are more). The
+design checks read every file but `design/` and `.relay/` as the app's code, so sort each listed
+file — relay's call, listed at 6b where the owner can correct it:
+- **Not part of the app** — a design export or mockup, a doc or brief, an old planning or run
+  folder (`.planning/`, another tool's run folder): `--ignore <path>` (prefer the folder). Left in, its colour
+  list fails the token check in every phase and its wording passes the copy check for an app that
+  never shows it. Skipped paths are never moved or edited.
+- **App files that must carry a value** — a test of the theme's values, a file generated from
+  the theme: `--allow <path or glob>`.
+- **App source** — leave it; the checks are about it.
+
 Then draft the fidelity criteria, numbered after the last `S<k>`. Decide the theme file the
 tokens phase will create (e.g. `src/theme/tokens.ts`) and any files generated from it that must
 carry a token value literally (e.g. `index.html` for `theme-color`, a web manifest) — generated,
@@ -831,8 +877,11 @@ the existing tokens the package re-lists; any token marked new is added to it):
 
 ```bash
 bash "$RELAY_DIR/scripts/check-design.sh" "<design dir>" --criteria --start <k+1> --run-root "$RELAY_ROOT" \
-  --theme <theme file> [--allow <generated file or glob>]...
+  --theme <theme file> [--allow <generated file or glob>]... [--ignore <path>]...
 ```
+
+The `--ignore` flags go into every drafted Acceptance command, so the phases and the audit skip
+the same paths.
 
 Each drafted Acceptance line runs `<run-root>/check-design.sh <design dir> --verify <aspect>` — the
 same deterministic check for the phases and the audit (Stage 7 copies the script into the run).
@@ -952,7 +1001,7 @@ principles) — the tunez planner made both of those changes here as "one more s
 Three files, all under `$RELAY_ROOT/`:
 
 1. **`ROADMAP.md`** — the plan (template at `$RELAY_DIR/templates/ROADMAP.md`). Each phase's `**Deliverables:**` is a bullet list, one `` `path/or/glob` — what it is `` per line (`none — <why>` for a phase that only changes earlier phases' files) — never a pointer to the phase spec: the audit runs `repo-state.sh deliverable` on each path, and tunez's "see `phases/phase-N.md` §Work" lines left it rebuilding 146 paths from prose. Check them with `bash $RELAY_DIR/scripts/validate-phase.sh --roadmap "$RELAY_ROOT/ROADMAP.md"`.
-2. **`STATE.md`** — live progress file the orchestrator records into after each report (via `record-phase.sh`) (template at `$RELAY_DIR/templates/STATE.md`; if Stage 2.7 already created it, fill that copy in). Fill `Memory dir:` with `$MEM_DIR` from Stage 0 — the `/goal` session has no other way to find where memory writeback goes. Fill `Design dir:` with `<design dir>` (`none` without a design stage; Stage 2.7b may have filled it already). Fill `Cleanup:` (`on`, or `off — <reason>`) and `Security pass:` (`yes`, or `skip — <reason>`) from Stage 4 — `record-phase.sh` routes the run by them, and a missing field means the step never runs. Fill `Push:` (`on`, or `off — <reason>`) too — `relay-git.sh` reads it, and a missing field means the old push-after-the-audit behaviour, not off.
+2. **`STATE.md`** — live progress file the orchestrator records into after each report (via `record-phase.sh`) (template at `$RELAY_DIR/templates/STATE.md`; if Stage 2.7 already created it, fill that copy in). Fill `Memory dir:` with `$MEM_DIR` from Stage 0 — the `/goal` session has no other way to find where memory writeback goes. Fill `Design dir:` with `<design dir>` (`none` without a design stage; Stage 2.7b may have filled it already), and `Design reference:` with Stage 1's value (`none` without a design stage). Fill `Cleanup:` (`on`, or `off — <reason>`) and `Security pass:` (`yes`, or `skip — <reason>`) from Stage 4 — `record-phase.sh` routes the run by them, and a missing field means the step never runs. Fill `Push:` (`on`, or `off — <reason>`) too — `relay-git.sh` reads it, and a missing field means the old push-after-the-audit behaviour, not off.
 3. **`phases/phase-N.md`** — one work-spec file per phase (template at `$RELAY_DIR/templates/phase-goal.txt`, renamed conceptually to "phase spec"). **Any length** — these are read from disk by the executor, not passed to `/goal`, so no char budget.
 
 Each phase spec must include these markers so the agent and evaluator both have stable anchors:
@@ -1068,6 +1117,8 @@ Spec (<run-root>/SPEC.md) — what the audit will grade against:
     (or: "none — <reason>")
   Design: <design dir>/HANDOFF.md @ <sha> — <S> screens · fidelity S<a>–S<b><, no tokens/components/copy check: …>
     · pictures vs copy list: <no differences | n differences, each decided by you>
+    · design checks skip (not the app's code): <paths, each with why — "your earlier design",
+      "an old run folder"> (omit when none) · allowed to carry colours: <paths> (omit when none)
     (or: "skipped" · or omit the line when there was no design stage)
 
 Phases:

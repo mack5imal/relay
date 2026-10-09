@@ -24,14 +24,17 @@
   If the app opens onto a menu or launcher that only routes to the main task, choose the screen
   where that task happens. Not the densest or most state-heavy screen — the most representative.
 
-  ADDING TO AN APP THAT ALREADY HAS A DESIGN (design-dir.sh printed `existing:` lines): keep
+  ADDING TO AN APP THAT ALREADY HAS A DESIGN (design-dir.sh printed `existing:` lines, or the
+  owner chose to match the app's current look at Stage 1 — a design kept elsewhere, the
+  `Design reference:` paths, or a look only in the code, `theme`): keep
   `## How we'll work — adding to an existing app` and `## The existing design system`, and
   delete the plain `## How we'll work`; for a new app, delete those two instead. The paste has
   exactly one "How we'll work" section. The look is already settled, so there is no three-takes
   stage — one take of the anchor in the existing style, then build-out. The anchor is the new
   screen the user will see most (the feature's main screen). Tell the owner which existing files
   to attach in the design tool (the existing package's HANDOFF.md and the PNGs of the screens
-  the new ones sit beside) — the brief names them; it cannot attach them.
+  the new ones sit beside, or the reference folder's colour doc and pictures; with `theme`,
+  screenshots they take of the running app) — the brief names them; it cannot attach them.
 
   {{SLUG}} is the feature name in kebab-case: the run's design folder name for an addition
   (design/<slug>/), otherwise the product name.
@@ -116,10 +119,11 @@ it lets them do.}}
 ## The existing design system
 
 Use what is here before inventing anything. I've attached {{the files the owner attaches — the
-existing design's `HANDOFF.md` and the pictures of the screens named below}}.
+existing design's `HANDOFF.md` or colour list and the pictures of the screens named below, or
+screenshots of those screens from the app}}.
 
-- Tokens: {{names and values — from the existing package's ## Design tokens by section, or the
-  theme file when there is no package}}
+- Tokens: {{names and values — from the existing package's ## Design tokens by section, the
+  reference folder's colour or token list, or the theme file when there is neither}}
 - Components: {{names, with one line each where it helps}}
 - Fonts: {{families}}
 - Screens the new ones sit beside: {{`<existing-id>` — <name> — why it matters (shares a layout,

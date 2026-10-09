@@ -240,7 +240,7 @@ repo crittheme
 run bash "$CD" "$R/design" --criteria --theme src/theme/tokens.ts --allow index.html --allow 'public/*.json' --run-root .relay/r
 assert_rc "exits 0" 0
 assert_contains "theme named in the statement" "are defined in \`src/theme/tokens.ts\`" "$OUT"
-assert_contains "allowances named" "files generated from it (index.html, public/*.json)" "$OUT"
+assert_contains "allowances named" "files allowed to carry them (index.html, public/*.json)" "$OUT"
 assert_contains "verify command carries theme + allows" "--verify tokens --theme src/theme/tokens.ts --allow 'index.html' --allow 'public/*.json' --except .relay/r/SPEC.md" "$OUT"
 assert_missing "no placeholder left" "<theme file>" "$OUT"
 
@@ -586,6 +586,87 @@ assert_rc "no git: the nested package is checked against the project's src/, not
 
 # ---------------------------------------------------------------------------
 echo
+echo "[5i] An earlier design that is not a relay package: --ignore and --overlap"
+# Most apps that predate relay keep their design somewhere else — here a design-tool export in
+# design_handoff_app/ (README with the colour list, an HTML mockup) and an old run folder
+# .oldrun/ — plus a test that checks the theme's values. Without --ignore they read as the
+# app's code: colours fail the token check, wording and markers satisfy the others.
+built vign
+mkdir -p "$R/design_handoff_app" "$R/.oldrun/run" "$R/tests"
+printf '# Handoff\n\n## Design tokens\n- `ink` #08161f\n- `accent` #7fc8b7\n\nThe overlay says "Back to work". SequenceStrip shows progress. design: heads-up\n' > "$R/design_handoff_app/README.md"
+printf '<div style="color:#7fc8b7">Hip reset in a minute</div>\n' > "$R/design_handoff_app/mock.html"
+printf '# Roadmap\n- accent #7fc8b7\n' > "$R/.oldrun/run/ROADMAP.md"
+printf "expect(tokens.ink).toBe('#08161f');\n" > "$R/tests/tokens.test.ts"
+printf '// Launch at login\nexport const n = 1;\n' > "$R/src/notes.ts"
+g add -A && g commit -qm "old design material"
+IG="--ignore design_handoff_app --ignore .oldrun"
+
+run bash "$CD" "$R/design" --verify tokens $V
+assert_rc "without --ignore, the old material fails the token check" 1
+assert_contains "… the export's README" "hard-coded in design_handoff_app/README.md" "$OUT"
+assert_contains "… the old run folder" "hard-coded in .oldrun/run/ROADMAP.md" "$OUT"
+assert_contains "… and the theme test" "hard-coded in tests/tokens.test.ts" "$OUT"
+run bash "$CD" "$R/design" --verify tokens $V $IG --allow 'tests/*'
+assert_rc "with the material skipped and the test allowed, tokens pass" 0
+run bash "$CD" "$R/design" --verify tokens $V --ignore ./design_handoff_app/ --ignore .oldrun/ --allow 'tests/*'
+assert_rc "… a ./ prefix or trailing slash on --ignore is the same path" 0
+
+run bash "$CD" "$R/design" --verify screens
+assert_rc "a marker named in the old README counts as a second file" 1
+assert_contains "… naming it" "screens: 'heads-up' — marked in 2 files" "$OUT"
+run bash "$CD" "$R/design" --verify screens $IG
+assert_rc "skipped, the screens check passes" 0
+
+sed -i.bak "s/ const c = 'Back to work';//" "$R/src/Overlay.tsx" && rm -f "$R/src/Overlay.tsx.bak"
+sed -i.bak "s/^export function SequenceStrip() { return null }$//" "$R/src/Overlay.tsx" && rm -f "$R/src/Overlay.tsx.bak"
+g add -A && g commit -qm "drop a string and a component"
+run bash "$CD" "$R/design" --verify copy
+assert_rc "without --ignore, wording only the old README has passes (the false pass)" 0
+run bash "$CD" "$R/design" --verify copy $IG
+assert_rc "skipped, the missing wording fails" 1
+assert_contains "… naming it" '"Back to work" — not found verbatim' "$OUT"
+run bash "$CD" "$R/design" --verify components
+assert_rc "without --ignore, a component only the old README names passes" 0
+run bash "$CD" "$R/design" --verify components $IG
+assert_contains "skipped, it must exist in the app" "components: 'SequenceStrip' — not found in source" "$OUT"
+
+run bash "$CD" "$R/design" --overlap
+assert_rc "--overlap exits 0" 0
+assert_contains "lists the export with its colours and wording" "overlap: design_handoff_app/README.md — 2 colour values, 1 copy string" "$OUT"
+assert_contains "… the mockup" "overlap: design_handoff_app/mock.html — 1 colour value, 1 copy string" "$OUT"
+assert_contains "… the old run folder" "overlap: .oldrun/run/ROADMAP.md — 1 colour value, 0 copy strings" "$OUT"
+assert_contains "… the theme test" "overlap: tests/tokens.test.ts — 1 colour value, 0 copy strings" "$OUT"
+assert_contains "… and the app's own source" "overlap: src/HeadsUp.tsx — 0 colour values, 1 copy string" "$OUT"
+assert_missing "wording only in a code comment is not counted" "src/notes.ts" "$OUT"
+assert_missing "design/ itself is never listed" "overlap: design/" "$OUT"
+assert_contains "ends with what to do" "already hold the package's colours or wording — sort each" "$OUT"
+run bash "$CD" "$R/design" --overlap $IG
+assert_missing "skipped paths are not listed" "design_handoff_app/README.md —" "$OUT"
+assert_contains "… and the summary names them" "(skipped: design_handoff_app .oldrun)" "$OUT"
+
+run bash "$CD" "$R/design" --criteria --run-root .relay/run3 --theme src/theme/tokens.ts --allow 'tests/*' $IG
+assert_contains "criteria commands carry the skips" "--verify screens --except .relay/run3/SPEC.md --ignore 'design_handoff_app' --ignore '.oldrun'\`" "$OUT"
+assert_contains "… the token command too" "--verify tokens --theme src/theme/tokens.ts --allow 'tests/*' --except .relay/run3/SPEC.md --ignore 'design_handoff_app' --ignore '.oldrun'\`" "$OUT"
+assert_contains "… the prose names the material" "outside \`design/\` and the earlier design material (\`design_handoff_app\`, \`.oldrun\`)" "$OUT"
+assert_contains "… and the capture check skips it" "':!.relay' ':!design_handoff_app' ':!.oldrun' ':!**/.gitignore'" "$OUT"
+assert_contains "… allowed files are named as allowed" "files allowed to carry them (tests/*)" "$OUT"
+run bash "$CD" "$R/design" --criteria --run-root .relay/run3 --theme src/theme/tokens.ts
+assert_missing "no --ignore, no mention" "earlier design material" "$OUT"
+
+rm -rf "$R/.git"
+run env GIT_CEILING_DIRECTORIES="$W" bash "$CD" "$R/design" --verify tokens $V --allow 'tests/*'
+assert_rc "no git: the old material still fails without --ignore" 1
+run env GIT_CEILING_DIRECTORIES="$W" bash "$CD" "$R/design" --verify tokens $V --allow 'tests/*' $IG
+assert_rc "no git: and is skipped with it" 0
+run env GIT_CEILING_DIRECTORIES="$W" bash "$CD" "$R/design" --overlap $IG
+assert_missing "no git: --overlap skips it too" "design_handoff_app" "$(printf '%s' "$OUT" | grep -v skipped)"
+
+repo onlydesign
+run bash "$CD" "$R/design" --overlap
+assert_contains "nothing outside design/ → none" "overlap: none — no file outside design/ holds the package's colours or wording" "$OUT"
+
+# ---------------------------------------------------------------------------
+echo
 echo "[6] Usage errors"
 run bash "$CD"
 assert_rc "no args exits 2" 2
@@ -599,6 +680,14 @@ run bash "$CD" "$W/good/design" --verify everything
 assert_rc "unknown --verify aspect exits 2" 2
 run bash "$CD" "$W/good/design" --verify all --criteria
 assert_rc "--verify with --criteria exits 2" 2
+run bash "$CD" "$W/good/design" --overlap --verify all
+assert_rc "--overlap with --verify exits 2" 2
+run bash "$CD" "$W/good/design" --overlap --criteria
+assert_rc "--overlap with --criteria exits 2" 2
+run bash "$CD" "$W/good/design" --verify all --ignore
+assert_rc "--ignore without a path exits 2" 2
+run bash "$CD" "$W/good/design" --verify all --ignore ./
+assert_rc "--ignore of the whole project exits 2" 2
 
 # ---------------------------------------------------------------------------
 echo

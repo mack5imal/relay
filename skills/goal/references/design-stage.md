@@ -116,6 +116,40 @@ Rejected: merging the new screens into the old `HANDOFF.md` (a hand merge, and i
 record an earlier run audited against), and per-package id namespaces (a changed screen is the
 same screen; one marker per id stays true).
 
+## An app whose design is not a relay package
+
+Most apps that predate relay have no `design/HANDOFF.md`. Their look lives in a design-tool
+export (`design_handoff_<app>/` with a README colour list, an HTML mockup, screenshots), a
+mockups folder, a DESIGN.md token table — or only in the code. Measured on one such app (a macOS
+app with a design export and an old planning folder committed beside the code): relay briefed
+the designer for three fresh looks, and with a stand-in package of the app's seven colours
+`--verify tokens` failed a correct build 36 times — every colour "hard-coded" in the old README,
+the mockup, the old planning folder's specs and a test of the theme. In an unattended run that
+is a fix window editing the owner's records, or a blocked run. Old mockups and docs also made
+missing wording pass `--verify copy`. So:
+- **Found, then confirmed.** `design-dir.sh` lists candidates as `elsewhere:` lines (a folder up
+  to three levels down whose name says design and that holds pictures or a "Design tokens" doc;
+  any other markdown file with that heading). Stage 1 names the likeliest in the design question
+  and asks whether the new screens should match the current look; the owner confirms or names the
+  real one. Detection only proposes — a name heuristic can be wrong, the owner cannot.
+- **Matching uses the addition brief**, filled from the reference's colour list and pictures, or,
+  for a look only in the code (`theme`), from the theme file — and the owner shares screenshots
+  of the screens the new ones sit beside, since relay has none.
+- **The checks skip the old material.** `check-design.sh --ignore <path>` leaves a folder or file
+  out of the source, like `design/`; `--criteria` writes the flags into every Acceptance command,
+  so the phases and the audit skip the same paths. Nothing is moved or edited.
+- **The overlap scan finds the rest.** Before drafting criteria, `--overlap` lists every file
+  that already holds the package's colours or wording — on the measured app it found, besides
+  the confirmed export, the old planning folder, two product docs that quote UI strings, and the
+  theme test. The planner sorts them: not part of the app → `--ignore`; an app file that must
+  carry a value (a theme test, a generated file) → `--allow`; app source → left alone. Relay's
+  call, listed at 6b. Name heuristics alone would have missed every one of those.
+
+Rejected: a name-based skip list built into the checks (`.planning`, `docs/`) — it misses the
+next project's names and can hide real app code; scanning the old material as a reference at
+build time (the build only needs to ignore it); asking the owner about every overlapping file
+(the overlap list is long and mechanical, and 6b shows the result).
+
 ## Fidelity criteria (what the build is held to)
 
 `check-design.sh design --criteria --start <next k> --run-root "$RELAY_ROOT" --theme <file>
@@ -127,8 +161,8 @@ antialiasing.
 --verify <aspect> --except <run-root>/SPEC.md` (Stage 7 copies the script into the run), so the
 phases and the audit run the same deterministic command instead of hundreds of agent greps —
 the tunez package had 345 copy strings, 60 tokens and 29 components, and its planner invented a
-fidelity script of its own. Source is every tracked and untracked file outside `design/` and
-`.relay/`.
+fidelity script of its own. Source is every tracked and untracked file outside `design/`,
+`.relay/` and the `--ignore` paths (above).
 
 1. **Screens built** — each approved id is marked by a `design: <id>` comment in exactly one
    source file outside `design/`. One grep per id; exact whatever the language. Zero means the
@@ -241,8 +275,10 @@ dependency, and a misread string would fail a correct build at night with nobody
 - **The user already has a design.** Stage 1's third option, or `design ready` with no brief
   printed: skip straight to verification. The contract is the same.
 - **Brownfield with a design system but no package** (the app predates relay's design stage).
-  The addition brief's `## The existing design system` is filled from the theme file and the
-  components recon found; the tokens criterion names the existing theme file.
+  Stage 1 asks whether to match the current look (`elsewhere:` candidates named in the question);
+  the addition brief is filled from the confirmed reference or the theme file; the checks skip
+  the reference and whatever `--overlap` shows is not the app's code ("An app whose design is not
+  a relay package", above). The tokens criterion names the existing theme file.
 - **The export lands in the wrong shape.** A lone `.zip` in `design/` is unzipped; a single
   wrapper folder (`design/design_handoff_tunez/HANDOFF.md`) is lifted. Two zips, two folders, or
   a name that already exists stop `prepare-design.sh` with a ❌ that names them — nothing moves.

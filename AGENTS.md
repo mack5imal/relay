@@ -59,7 +59,8 @@ relay/
 │   │   ├── check-seeds.sh      Checks each phase's Map seeds will exist when the phase runs (planner-only). Tested by tests/check-seeds.test.sh.
 │   │   ├── check-research.sh   Validates Stage 2.6 research answers; --digest prints what the planner reads; --only <slug> is the researcher's self-check (planner-only). Tested by tests/check-research.test.sh.
 │   │   ├── prepare-design.sh   Stage 2.7d: unzips/lifts the export the user put in design/ and commits design/ only (planner-only). Tested by tests/prepare-design.test.sh.
-│   │   ├── check-design.sh     Verifies the committed design/ package; --criteria drafts fidelity criteria + edge rows; --verify checks the build (copied to the run root at Stage 7). Tested by tests/check-design.test.sh.
+│   │   ├── design-dir.sh       Stage 1: picks the run's design folder (design or design/<feature>), lists earlier packages and designs kept elsewhere (planner-only). Tested by tests/design-dir.test.sh.
+│   │   ├── check-design.sh     Verifies the committed design/ package; --criteria drafts fidelity criteria + edge rows; --verify checks the build; --ignore skips an earlier non-relay design; --overlap lists what the app already holds of the package (copied to the run root at Stage 7). Tested by tests/check-design.test.sh.
 │   │   ├── assemble-brief.sh   Expands PHASE-BRIEF.md into a subagent's brief (spec + carryover + map slice + state + formats). Copied into the run dir at Stage 7. Tested by tests/assemble-brief.test.sh.
 │   │   ├── record-phase.sh     Validates a subagent's report file and applies every STATE.md change for its outcome; logs no-report dispatches. Copied into the run dir at Stage 7. Tested by tests/record-phase.test.sh.
 │   │   └── validate-phase.sh   Sanity-checks a phase spec has required markers; warns on sizing / exemplar gaps.
