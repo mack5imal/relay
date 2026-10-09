@@ -304,7 +304,7 @@ RELAY_RUN_COMPLETE
 Audit coverage: <re_verified> re-verified, <trust_prior> trust-prior (<pct>% re-verified)[ — <i> spec criteria's tests inspected; <e> checks only confirmed a file exists].   ← as record-phase.sh printed it
 All <N> phases complete. Audit passed in <rounds> round(s).
 <the one line `relay-git.sh push` printed, verbatim — it starts with "push:">
-[Design captures: retaken at the end — compare <run-root>/design-check/<id>.png with design/screens/<id>.png]   ← only when record-phase.sh printed it (or its `⚠ Design captures: may be out of date — …` form)
+[Design captures: retaken at the end — compare <run-root>/design-check/<id>.png with <design dir>/screens/<id>.png]   ← only when record-phase.sh printed it (or its `⚠ Design captures: may be out of date — …` form)
 [Findings: <d> cleanup deferred · <k> correctness/security open · <s> checks skipped[ · <p> plan changes][ · <a> audit notes] — <run-root>/FINDINGS.md]   ← only when record-phase.sh printed it
 [Checks: skipped (--lean) — <phase reviews, tidy-up, security pass>]   ← only when record-phase.sh printed it
 Summary: <5 lines max — what shipped, what changed, what to verify manually; when the push failed or was skipped with a command, that command is one of the manual steps>

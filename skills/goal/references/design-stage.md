@@ -84,6 +84,38 @@ This is the one commit planning makes; it was the owner's by hand until the tune
 showed it was pure friction. The same step also records the commit (`**Design:** design/HANDOFF.md @ <sha>` in `SPEC.md`), so the audit
 checks against the exact package the plan was made from.
 
+## Adding screens to an app that already has a design
+
+A later run on an app relay built with a design stage finds `design/HANDOFF.md` already there.
+Three things used to go wrong:
+- the new export landed on top of the old package (`prepare-design.sh` only unpacks into a folder
+  with no `HANDOFF.md`, so it was committed raw and the old package verified instead);
+- `--criteria` hard-coded `design`, so every drafted check verified the old package;
+- `--verify` read the old `HANDOFF.md` and `source/` as app code — the old token table showed up
+  as "hard-coded colour" failures, and old copy made missing strings pass.
+
+And the brief asked for three fresh directions for a look that was already settled.
+
+So (owner, 2026-10-09):
+- **Each package has its own folder.** `design-dir.sh <feature>` returns `design` when there is
+  no package yet, else `design/<feature>`, and lists the earlier ones. The earlier package is
+  never touched — it stays the record of the original screens and the sha its own run audited
+  against. The folder is recorded in `STATE.md` (`**Design dir:**`, for resume) and `SPEC.md`
+  (`**Design:** <dir>/HANDOFF.md @ <sha>`), and every command takes it.
+- **Every package is design material.** `--verify` leaves all of `design/` out of the source it
+  checks, not only the package being verified.
+- **The addition brief** hands the designer the existing system (tokens, components, fonts,
+  the screens the new ones sit beside — the owner attaches the files) and asks for one take of
+  the anchor in that style, then build-out. The package holds only the new screens and any
+  existing screen the feature changes, under its existing id (its `design: <id>` marker is
+  already in the code; the per-screen copy and components checks hold the changes). Tokens and
+  components it uses are re-listed under their existing names and values, new ones marked
+  `(new)`; `--theme` names the existing theme file, so a new token must be added there.
+
+Rejected: merging the new screens into the old `HANDOFF.md` (a hand merge, and it rewrites the
+record an earlier run audited against), and per-package id namespaces (a changed screen is the
+same screen; one marker per id stays true).
+
 ## Fidelity criteria (what the build is held to)
 
 `check-design.sh design --criteria --start <next k> --run-root "$RELAY_ROOT" --theme <file>
@@ -208,9 +240,9 @@ dependency, and a misread string would fail a correct build at night with nobody
 
 - **The user already has a design.** Stage 1's third option, or `design ready` with no brief
   printed: skip straight to verification. The contract is the same.
-- **Brownfield with an existing design system.** The brief lists the tokens, components and
-  fonts recon found and asks the designer to match them. The tokens criterion then names the
-  existing theme file instead of a new one.
+- **Brownfield with a design system but no package** (the app predates relay's design stage).
+  The addition brief's `## The existing design system` is filled from the theme file and the
+  components recon found; the tokens criterion names the existing theme file.
 - **The export lands in the wrong shape.** A lone `.zip` in `design/` is unzipped; a single
   wrapper folder (`design/design_handoff_tunez/HANDOFF.md`) is lifted. Two zips, two folders, or
   a name that already exists stop `prepare-design.sh` with a ❌ that names them — nothing moves.

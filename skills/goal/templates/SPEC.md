@@ -5,7 +5,7 @@
 **Created:** {{DATE}}
 **Interview:** {{ROUNDS}} round(s){{QUICK_NOTE}}
 **Research:** {{research/README.md — <n> questions, <u> unverified | none — <reason>}}   <!-- Stage 2.6 -->
-**Design:** {{none | skipped | design/HANDOFF.md @ <sha> — Stage 2.7, optional}}
+**Design:** {{none | skipped | <design dir>/HANDOFF.md @ <sha> — design/, or design/<feature>/ beside an existing design; Stage 2.7, optional}}
 
 <!--
   Written by Stage 2.5, after recon, before decomposition. This is the agreed statement of

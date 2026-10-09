@@ -33,6 +33,7 @@ assert_contains() { case "$3" in *"$2"*) ok "$1";; *) no "$1" "missing substring
 assert_missing()  { case "$3" in *"$2"*) no "$1" "unexpectedly contains [$2]";; *) ok "$1";; esac; }
 assert_file()     { if [ -e "$2" ]; then ok "$1"; else no "$1" "no $2"; fi; }
 assert_nofile()   { if [ -e "$2" ]; then no "$1" "$2 exists"; else ok "$1"; fi; }
+assert_eq()       { if [ "$2" = "$3" ]; then ok "$1"; else no "$1" "expected [$2] got [$3]"; fi; }
 
 run() { OUT="$("$@" 2>&1)"; RC=$?; }
 
@@ -185,6 +186,23 @@ assert_rc "a missing design dir exits 1" 1
 assert_contains "says to create it" "create it" "$OUT"
 run bash "$PD"
 assert_rc "no args exits 2" 2
+
+# ---------------------------------------------------------------------------
+echo
+echo "[N] An addition: the new package's zip in design/<feature>/, beside the app's first package"
+repo addition
+cp -R "$FIX/." "$R/design/"; g add design && g commit -qm "design: handoff"
+before="$(git -C "$R" rev-parse HEAD:design/HANDOFF.md)"
+mkdir -p "$R/design/practice" "$W/addsrc"; cp -R "$FIX/." "$W/addsrc/"
+printf '\n<!-- practice -->\n' >> "$W/addsrc/HANDOFF.md"
+mkzip "$R/design/practice/design_handoff_practice.zip" "$W/addsrc" design_handoff_practice
+run bash "$PD" "$R/design/practice"
+assert_rc "exits 0" 0
+assert_contains "commits the new folder" "design: committed " "$OUT"
+assert_file "unzipped and lifted into design/practice" "$R/design/practice/HANDOFF.md"
+assert_nofile "the zip is gone" "$R/design/practice/design_handoff_practice.zip"
+assert_eq "the first package is untouched" "$before" "$(git -C "$R" rev-parse HEAD:design/HANDOFF.md)"
+assert_eq "the commit holds only design/practice" "design/practice" "$(git -C "$R" show --name-only --format= HEAD | sed 's#/[^/]*$##; s#/screens$##' | sort -u)"
 
 # ---------------------------------------------------------------------------
 echo

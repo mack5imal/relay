@@ -10,6 +10,7 @@
 **Cleanup:** {{CLEANUP}}    <!-- "on" — the tidy-up pass runs after the last phase, before the audit; "off — <reason>" (e.g. "off — --lean"). Missing = off (runs planned before 0.10) -->
 **Security pass:** {{SECURITY_PASS}}    <!-- "yes" — the security pass runs after the tidy-up, before the audit; "skip — <reason>" (e.g. "skip — --lean", "skip — docs only"). Missing = skip -->
 **Push:** {{PUSH}}    <!-- "on" — relay pushes the run branch it created once after the audit, to origin or the only remote ("on — to <remote>" names one of several); "off — <reason>" ("off — default", "off — --no-push", "off — RELAY_PUSH=off"): the branch stays local and RELAY_RUN_COMPLETE gives the command. Never the owner's branch. Missing = on (runs planned before 0.11) -->
+**Design dir:** {{DESIGN_DIR}}    <!-- the run's design package folder from design-dir.sh: "design", or "design/<feature>" when the app already had a design (the earlier package stays untouched beside it); "none" without a design stage. Written at Stage 2.7b so a resumed run finds it. Missing = design -->
 **Memory dir:** {{MEM_DIR}}    <!-- absolute path detected at Stage 0 by memory-dir.sh (Claude Code keeps one memory dir per git repository, shared by its worktrees and subdirectories: ~/.claude/projects/<main checkout, non-alphanumerics → ->/memory; outside git, the working directory). Phase subagents write memory files here; the brief assembler reads carryover from it. May not exist yet — created on first write -->
 
 
