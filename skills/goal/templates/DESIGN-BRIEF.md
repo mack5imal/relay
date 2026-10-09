@@ -23,6 +23,18 @@
   when they open it. Never onboarding, settings, an error or empty state, a sheet or a modal.
   If the app opens onto a menu or launcher that only routes to the main task, choose the screen
   where that task happens. Not the densest or most state-heavy screen — the most representative.
+
+  ADDING TO AN APP THAT ALREADY HAS A DESIGN (design-dir.sh printed `existing:` lines): keep
+  `## How we'll work — adding to an existing app` and `## The existing design system`, and
+  delete the plain `## How we'll work`; for a new app, delete those two instead. The paste has
+  exactly one "How we'll work" section. The look is already settled, so there is no three-takes
+  stage — one take of the anchor in the existing style, then build-out. The anchor is the new
+  screen the user will see most (the feature's main screen). Tell the owner which existing files
+  to attach in the design tool (the existing package's HANDOFF.md and the PNGs of the screens
+  the new ones sit beside) — the brief names them; it cannot attach them.
+
+  {{SLUG}} is the feature name in kebab-case: the run's design folder name for an addition
+  (design/<slug>/), otherwise the product name.
 -->
 
 ---
@@ -30,7 +42,7 @@
 # Design brief: {{PRODUCT_OR_FEATURE_NAME}}
 
 I'm about to have this built by an autonomous coding agent that works from your handoff alone —
-it cannot ask you anything. We'll design it together in four stages, and I'll review at the end of
+it cannot ask you anything. We'll design it together in stages, and I'll review at the end of
 each one; the final package goes in the exact shape described at the end.
 
 ## How we'll work
@@ -60,6 +72,36 @@ added or dropped section, a changed behaviour, other fonts, anything the brief b
 differently. Good ideas that change the brief are welcome; the list is how the builder learns
 that I approved them. It goes in the package as "Deviations from the brief".
 
+## How we'll work — adding to an existing app
+
+This app already has a design (below, under "The existing design system"), and the new screens
+must look as if they were always part of it. Read the whole brief first. Then work in three
+stages. **At the end of each stage, stop and wait for me. Don't start the next stage until I've
+told you to.** I won't use exact words — anything that clearly means the same thing counts. If
+you can't tell whether I'm finished with a stage or still giving feedback, ask me before moving
+on.
+
+1. **Match what exists, one screen.** Design only `{{ANCHOR_SCREEN_ID}}` — {{WHY: one line, e.g.
+   "the screen the new feature opens to"}} — in the existing style, from the existing tokens and
+   components. One take, not three: the look is already settled. No other screens yet, and no
+   handoff package.
+   → I'll tell you when it fits, or what to change.
+2. **Build out.** Design every other new screen, and every state listed below, the same way.
+   Then stop so I can review them all.
+3. **Review, then package.** I may ask for changes to any screen; revise until I'm satisfied.
+   Only when I tell you the screens are final, produce the package described in "What to hand
+   back".
+
+**Reuse before you invent.** An existing token, component or pattern always wins. When the new
+screens genuinely need something new — a colour, a component — name it and mark it new. If a new
+screen changes an existing one (a new button, a new row), draw the changed screen too and keep its
+existing id.
+
+**Keep a list of every departure from this brief or from the existing design that I agree to** —
+a changed rule, an added or dropped section, a different behaviour, a new colour where an
+existing one would do. The list is how the builder learns that I approved them. It goes in the
+package as "Deviations from the brief".
+
 ## What we're building
 
 {{GOAL — two or three sentences from SPEC.md ## Goal, in the user's terms: who it is for, what
@@ -70,9 +112,18 @@ it lets them do.}}
 - Platform: {{e.g. macOS 14 menu-bar app, SwiftUI · responsive web app, React + Tailwind, 360–1440px}}
 - {{CONSTRAINTS from SPEC.md that affect the design: accessibility level, dark mode, localization,
   minimum sizes, performance-visible limits}}
-- {{BROWNFIELD ONLY — Existing design system: match it rather than inventing a new one.
-  Tokens: <names and values recon found>. Components: <names>. Fonts: <families>.
-  Delete this bullet for a greenfield build.}}
+
+## The existing design system
+
+Use what is here before inventing anything. I've attached {{the files the owner attaches — the
+existing design's `HANDOFF.md` and the pictures of the screens named below}}.
+
+- Tokens: {{names and values — from the existing package's ## Design tokens by section, or the
+  theme file when there is no package}}
+- Components: {{names, with one line each where it helps}}
+- Fonts: {{families}}
+- Screens the new ones sit beside: {{`<existing-id>` — <name> — why it matters (shares a layout,
+  opens the new screen, holds the changed row…)}}
 
 ## The design must not
 
@@ -179,4 +230,8 @@ Rules for the package:
   `## Design tokens` (colour, type, space…) are fine.
 - `source/` is for humans; the builder will not read it. Anything it needs belongs in
   `HANDOFF.md` or a screenshot.
+- **Adding to an existing app:** the package holds only the new screens and any existing screen
+  you changed, under its existing id. In `## Design tokens` and `## Components`, list every
+  existing one the new screens use, under its existing name and value, and mark each new one
+  `(new)` in its usage or description.
 - Export the package as `design_handoff_{{SLUG}}.zip`.

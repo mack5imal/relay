@@ -793,6 +793,17 @@ cov_run "Audit coverage: 60 re-verified (5 tests inspected, 10 existence only) /
 assert_contains "… after the banner too" "Audit coverage: 60 re-verified, 40 trust-prior (60% re-verified) — 5 spec criteria's tests inspected; 10 checks only confirmed a file exists." "$OUT"
 cov_run "Audit coverage: 31 re-verified / 0 trust-prior (100% re-verified)"
 assert_missing "an audit without the split (older runs) prints exactly as before" "tests inspected" "$OUT"
+# the compare line names the run's design folder (design/<feature>/ when screens were added)
+w="$(mktemp -d)"; make_run "$w/run"
+cp "$FX/contextmeter-audit-1.report.md" "$w/run/phases/audit-1.report.md"
+printf 'Design captures: retaken — 2 screens\n' >> "$w/run/phases/audit-1.report.md"
+printf '# Spec: x\n\n**Design:** design/practice/HANDOFF.md @ abc1234\n' > "$w/run/SPEC.md"
+run bash "$RP" "$w/run" --audit 1
+assert_contains "an added package's screens are the ones to compare" "with design/practice/screens/<id>.png" "$OUT"
+make_run "$w/run2"; cp "$w/run/phases/audit-1.report.md" "$w/run2/phases/"; printf '# Spec: x\n\n**Design:** design/HANDOFF.md @ abc1234\n' > "$w/run2/SPEC.md"
+run bash "$RP" "$w/run2" --audit 1
+assert_contains "a first package is design/" "with design/screens/<id>.png" "$OUT"
+rm -rf "$w"
 
 echo
 echo "[23] --interrupted: cut short from outside — logged, re-dispatched, never a strike"

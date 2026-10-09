@@ -8,7 +8,9 @@
 #                          [--screen <id>]...      (copy only)
 #
 # Why this exists: Stage 2.7 hands the user a design brief and stops. They come back with a
-# package from Claude Design (recommended) or any other tool or designer, committed at design/.
+# package from Claude Design (recommended) or any other tool or designer, committed at design/
+# — or, when the app already has a design from an earlier run, at design/<feature>/ beside it
+# (design-dir.sh chooses; <design-dir> below is whichever it is).
 # The run builds against that package, so before it shapes a single phase the planner needs to
 # know the package is usable and the build can be held to it. Two things are required, whatever
 # made the design:
@@ -39,7 +41,9 @@
 # --verify   check the BUILT code against the package (fix 19) — the command the fidelity
 #            criteria's Acceptance lines name, so phases and the audit run one deterministic check
 #            instead of hundreds of agent greps. Source = every tracked and untracked file outside
-#            design/ and .relay/ (git), or outside design/, .relay/, .git/, node_modules/ (no git).
+#            design/ (every package in it, not only this one — an earlier package's token table
+#            and copy would otherwise read as the app's code) and .relay/ (git), or outside those,
+#            .git/ and node_modules/ (no git).
 #              screens     each approved id is marked `design: <id>` in exactly one file
 #              components  each §Components name appears as a whole word
 #              tokens      each token name (lowercased, - and _ removed) appears in --theme, and no
@@ -94,6 +98,21 @@ done
 [[ ${#only[@]} -eq 0 || "$verify" == copy ]] || usage
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Where the package sits in the project. A project's first package is design/; a later run that
+# adds screens to an app with a design puts its own beside it, design/<feature>/ (design-dir.sh).
+# $prel is the package's path from the project root, $proot its top folder (design) — every
+# package under it is design material, never the app's source. Without git the project root is
+# the parent of the outermost design folder ($dir/.. would be design/ for a nested package).
+if git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  ptop="$(git -C "$dir" rev-parse --show-toplevel)"; pgit=1
+else
+  d="$(cd "$dir" && pwd)"
+  while [[ "$(basename "$(dirname "$d")")" == design ]]; do d="$(dirname "$d")"; done
+  ptop="$(dirname "$d")"; pgit=0
+fi
+prel="$(cd "$dir" && pwd -P)"; prel="${prel#"$(cd "$ptop" && pwd -P)"/}"
+proot="${prel%%/*}"
 handoff="$dir/HANDOFF.md"
 errors=0; warnings=0
 err()  { echo "❌ $*"; errors=$((errors + 1)); }
@@ -223,12 +242,7 @@ fi
 # committed is not re-checked here; a broken package still fails (nothing to verify against).
 if [[ -n "$verify" ]]; then
   [[ $errors -eq 0 ]] || { echo "verify: the design package itself is broken — fix it first"; exit 1; }
-  if git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    top="$(git -C "$dir" rev-parse --show-toplevel)"; vgit=1
-  else
-    top="$(cd "$dir/.." && pwd)"; vgit=0
-  fi
-  drel="$(cd "$dir" && pwd -P)"; drel="${drel#"$(cd "$top" && pwd -P)"/}"
+  top="$ptop"; vgit=$pgit; drel="$prel"
 
   # Exemptions: `## Design reconciliation` rows whose Resolution starts "spec wins".
   ex_screen=""; ex_comp=""; ex_token=""; exfile="$(mktemp)"
@@ -265,13 +279,13 @@ if [[ -n "$verify" ]]; then
   # Source files, NUL-separated, relative to $top.
   srclist="$(mktemp)"
   if [[ $vgit -eq 1 ]]; then
-    git -C "$top" ls-files -z --cached --others --exclude-standard -- . ":!$drel" ':!.relay' > "$srclist.all"
+    git -C "$top" ls-files -z --cached --others --exclude-standard -- . ":!$proot" ':!.relay' > "$srclist.all"
     : > "$srclist"
     while IFS= read -r -d '' f; do [[ -f "$top/$f" ]] && printf '%s\0' "$f" >> "$srclist"; done < "$srclist.all"
     rm -f "$srclist.all"
   else
     (cd "$top" && find . -type f -not -path './.git/*' -not -path './node_modules/*' \
-      -not -path "./$drel/*" -not -path './.relay/*' | sed 's#^\./##' | tr '\n' '\0') > "$srclist"
+      -not -path "./$proot/*" -not -path './.relay/*' | sed 's#^\./##' | tr '\n' '\0') > "$srclist"
   fi
   # files_with <grep-args...> — the source files matching, one per line (pass patterns with -e)
   files_with() { (cd "$top" && xargs -0 grep -lI "$@" < "$srclist" 2>/dev/null) | sort -u; }
@@ -399,7 +413,7 @@ if git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   s="$(git -C "$top" log -1 --format=%h -- "$rel" 2>/dev/null)"
   [[ -n "$s" && -z "$untracked$modified" ]] && sha="$s"
 else
-  warn "not a git repository — cannot confirm design/ is committed; cleanliness checks run without git history anyway"
+  warn "not a git repository — cannot confirm $prel/ is committed; cleanliness checks run without git history anyway"
   sha="no-git"
 fi
 
@@ -415,7 +429,7 @@ quoted_ids="$(for id in "${ids[@]}"; do printf '`%s` ' "$id"; done | sed 's/ $//
 k=$start
 # The command every Acceptance line names: the copy of this script Stage 7 puts in the run root.
 thm="${theme:-<theme file>}"
-vcmd="bash $runroot/check-design.sh design"
+vcmd="bash $runroot/check-design.sh $prel"
 vargs=" --except $runroot/SPEC.md"
 tokargs=" --theme $thm"
 for g in ${allows[@]+"${allows[@]}"}; do tokargs="$tokargs --allow '$g'"; done
@@ -423,15 +437,15 @@ exnote="Items resolved \"spec wins\" in \`## Design reconciliation\` are exempt.
 kinds=""   # "S7=screens S8=components ..." — which reason table each drafted criterion uses
 
 emit() {
-echo "- **S$k — Design: every approved screen is built**: each approved screen in \`design/HANDOFF.md\` ($quoted_ids) is marked by a \`design: <id>\` comment in exactly one source file outside \`design/\`."
-echo "  - Current: the screens exist only as the design package at \`design/\` ($sha)."
+echo "- **S$k — Design: every approved screen is built**: each approved screen in \`$prel/HANDOFF.md\` ($quoted_ids) is marked by a \`design: <id>\` comment in exactly one source file outside \`$proot/\`."
+echo "  - Current: the screens exist only as the design package at \`$prel/\` ($sha)."
 echo "  - Target: the file that builds each screen carries its \`design: <id>\` marker."
 echo "  - Acceptance: \`$vcmd --verify screens$vargs\` exits 0 (each id marked in exactly one file). $exnote"
 kinds="$kinds S$k=screens"; k=$((k + 1))
 
 if [[ ${#components[@]} -gt 0 ]]; then
   if [[ ${#components[@]} -le 12 ]]; then list="$(join "${components[@]}")"; else list="${#components[@]} names"; fi
-  echo "- **S$k — Design: named components exist**: every component in \`design/HANDOFF.md\` §Components ($list) exists as an identifier in source outside \`design/\`."
+  echo "- **S$k — Design: named components exist**: every component in \`$prel/HANDOFF.md\` §Components ($list) exists as an identifier in source outside \`$proot/\`."
   echo "  - Current: the components are named only in the design package."
   echo "  - Target: each has a definition under the name the design uses."
   echo "  - Acceptance: \`$vcmd --verify components$vargs\` exits 0 (each name present as a whole word). $exnote"
@@ -443,7 +457,7 @@ if [[ ${#tokens[@]} -gt 0 ]]; then
   while IFS= read -r h; do [[ -n "$h" ]] && hex+=("$h"); done < <(
     for v in ${values[@]+"${values[@]}"}; do hexes "$v"; done | awk '!seen[tolower($0)]++'
   )
-  echo "- **S$k — Design: tokens live in one theme file**: all ${#tokens[@]} tokens in \`design/HANDOFF.md\` §Design tokens are defined in \`$thm\`, and no token colour value$([[ ${#hex[@]} -gt 0 && ${#hex[@]} -le 12 ]] && printf ' (%s)' "$(join "${hex[@]}")") is hard-coded outside it$([[ ${#allows[@]} -gt 0 ]] && printf ' or the files generated from it (%s)' "$(join "${allows[@]}")")."
+  echo "- **S$k — Design: tokens live in one theme file**: all ${#tokens[@]} tokens in \`$prel/HANDOFF.md\` §Design tokens are defined in \`$thm\`, and no token colour value$([[ ${#hex[@]} -gt 0 && ${#hex[@]} -le 12 ]] && printf ' (%s)' "$(join "${hex[@]}")") is hard-coded outside it$([[ ${#allows[@]} -gt 0 ]] && printf ' or the files generated from it (%s)' "$(join "${allows[@]}")")."
   echo "  - Current: the tokens are defined only in the design package."
   echo "  - Target: one theme file defines every token; everything else references it, and platform colour values (manifest, theme-color) are generated from it, never duplicated."
   echo "  - Acceptance: \`$vcmd --verify tokens$tokargs$vargs\` exits 0 (names compared case-insensitively with \`-\`/\`_\` removed, so \`panel-border\` matches \`panelBorder\`; every hex in a value cell is checked, light and dark alike)."
@@ -451,7 +465,7 @@ if [[ ${#tokens[@]} -gt 0 ]]; then
 fi
 
 if [[ $copy_count -gt 0 ]]; then
-  echo "- **S$k — Design: copy matches the design**: all $copy_count strings in \`design/HANDOFF.md\` §Copy appear verbatim in source outside \`design/\` — text that appears only in a code comment does not count."
+  echo "- **S$k — Design: copy matches the design**: all $copy_count strings in \`$prel/HANDOFF.md\` §Copy appear verbatim in source outside \`$proot/\` — text that appears only in a code comment does not count."
   echo "  - Current: the copy exists only in the design package."
   echo "  - Target: the built UI uses the designed wording; each screen's phase checks its own strings with \`--screen <id>\`."
   echo "  - Acceptance: \`$vcmd --verify copy$vargs\` exits 0 (each string split on \`{name}\` placeholders; every fragment of 3+ characters present verbatim, a one-word fragment as a whole word — one-word strings are only presence-checked, so their rendering is left to the post-run screen comparison; \`(e.g. …)\` examples are sample values, not required). $exnote"
@@ -460,8 +474,8 @@ fi
 
 echo "- **S$k — Design: screens captured for review**: for each approved screen, \`$runroot/design-check/<id>.png\` exists, or the polish phase's evidence file records \`capture unavailable: <id> — <reason>\`; the capture code takes its output directory from \`RELAY_DESIGN_CHECK_DIR\`, so no run path is written into the product, and the evidence file records the one command that takes them as \`Capture command: <command>\`, which the audit re-runs so the screenshots show the finished build."
 echo "  - Current: no captures exist."
-echo "  - Target: the owner can compare each built screen against \`design/screens/<id>.png\` after the run; the comparison itself is never a gate."
-echo "  - Acceptance: for each id, \`test -f $runroot/design-check/<id>.png\` exits 0 or \`grep -F 'capture unavailable: <id>' $runroot/phases/phase-*.evidence.md\` prints a line; and \`git grep --untracked -lF '.relay/' -- . ':!design' ':!.relay' ':!**/.gitignore'\` returns no files."
+echo "  - Target: the owner can compare each built screen against \`$prel/screens/<id>.png\` after the run; the comparison itself is never a gate."
+echo "  - Acceptance: for each id, \`test -f $runroot/design-check/<id>.png\` exits 0 or \`grep -F 'capture unavailable: <id>' $runroot/phases/phase-*.evidence.md\` prints a line; and \`git grep --untracked -lF '.relay/' -- . ':!$proot' ':!.relay' ':!**/.gitignore'\` returns no files."
 kinds="$kinds S$k=capture"
 }
 

@@ -31,7 +31,7 @@ If a phase can't be measured, it isn't a phase. Rewrite it until it can.
 2. **Recon** — parallel codebase + environment scan
 2.5. **Specification** — the interview. Five rounds minimum, scored against four ambiguity dimensions, then edge and prohibition probes; writes `SPEC.md`, the agreed statement of intent the final audit re-verifies against. `--quick` narrows it to what is genuinely unclear.
 2.6. **Research** — the planner turns the spec's unknowns into 1–6 specific questions (or a reasoned "none"), you approve them, one researcher subagent per question answers with sources into `research/`, and any finding that contradicts the spec comes back to you
-2.7. **Design (optional)** — for UI work: compile a design brief from `SPEC.md`, hand it to the user for Claude Design (or any design tool), stop; on return verify the package at `design/`, add design-fidelity criteria to `SPEC.md`
+2.7. **Design (optional)** — for UI work: compile a design brief from `SPEC.md`, hand it to the user for Claude Design (or any design tool), stop; on return verify the package at `design/` (or `design/<feature>/` beside an existing design), add design-fidelity criteria to `SPEC.md`
 3. **Deep think** — consume the research digest; list top-3 risks + dependencies
 4. **Decompose** — derive phase count from the task itself; no fixed cap
 5. **Write phase specs** — one work-spec file per phase under `$RELAY_ROOT/phases/phase-N.md` (any length, no char budget)
@@ -158,7 +158,7 @@ Write detected tools to `$RELAY_ROOT/tools.md`. Stage 2.6 and the phase goals re
 
 ### Resume detection
 
-If you resolved to resume a run in "Claim the run namespace", read its `$RELAY_ROOT/STATE.md`. If `Status` is `AWAITING_DESIGN`, the planner stopped at Stage 2.7 for a design: print "Resuming Relay at design verification (`$RELAY_ROOT`)" and go to Stage 2.7 step d. If `Status` is `IN_PROGRESS` / `READY_TO_DISPATCH` / `BLOCKED` with a phase pending, **do not re-plan**. Print a one-line "Resuming Relay from phase N (`$RELAY_ROOT`)" and jump straight to Stage 6 (plan review) with the existing artifacts, or directly to Stage 7 (dispatch) if the user confirms resume.
+If you resolved to resume a run in "Claim the run namespace", read its `$RELAY_ROOT/STATE.md`. If `Status` is `AWAITING_DESIGN`, the planner stopped at Stage 2.7 for a design: print "Resuming Relay at design verification (`$RELAY_ROOT`)", take `<design dir>` from `STATE.md`'s `**Design dir:**` line (`design` when it has none), and go to Stage 2.7 step d. If `Status` is `IN_PROGRESS` / `READY_TO_DISPATCH` / `BLOCKED` with a phase pending, **do not re-plan**. Print a one-line "Resuming Relay from phase N (`$RELAY_ROOT`)" and jump straight to Stage 6 (plan review) with the existing artifacts, or directly to Stage 7 (dispatch) if the user confirms resume.
 
 ---
 
@@ -216,9 +216,27 @@ The exception: when the task is tagged `ui` and `--design` is absent, ask one `A
 right after the intake block — header "Design?", question "This is UI work. Design the screens
 before planning the build?", options **Design stage (Recommended)** (Stage 2.7 puts a brief
 on the clipboard for Claude Design or any design tool, then waits for the package) · **I already have a design in
-`design/`** (skip the brief; Stage 2.7 goes straight to verification) · **No design stage**.
+`<design dir>/`** (skip the brief; Stage 2.7 goes straight to verification) · **No design stage**.
 Recon cannot answer this one, and asking now tells the user early that the run will pause for a
 design. Record the answer as the `Design:` value (`on`, `existing`, `off`).
+
+**Where the design goes.** Whenever the task is tagged `ui` (or `--design` was given), first pick
+a short kebab-case name for the feature and run, from the repository root:
+
+```bash
+bash "$RELAY_DIR/scripts/design-dir.sh" <feature-name>
+```
+
+Its `Design dir:` line is **the run's design folder** — `<design dir>` everywhere below: `design`
+for an app with no design yet, `design/<feature-name>` when the app already has one (its
+`existing:` lines list each earlier package). The earlier package is never touched: it is the
+record of the original screens. When there are `existing:` lines, this is **an addition to an
+existing design** — say so in the question: "This app already has a design (<n> screens). Design
+the new screens before planning the build? Their design goes in `design/<feature-name>/`, beside
+it.", with options **Design stage (Recommended)** (a brief written for adding to the existing
+look — no fresh directions; it hands the designer the existing colours, components and screens) ·
+**I already have the new screens' design** (I'll put it in `design/<feature-name>/`) · **No design
+stage**. Exit 1 means that name already holds a package — pick another.
 
 **Missing research tools.** When `RESEARCH_TOOLS` has no `web` (WebSearch unavailable), ask —
 in the same `AskUserQuestion` call as the design question when both apply — header "Research",
@@ -661,15 +679,16 @@ unverified findings and unanswered questions under Key assumptions).
 Runs when `Design:` is `on` or `existing` (Stage 1), after `SPEC.md` passes `validate-spec.sh`.
 Relay does not generate designs: it writes a brief, the user takes it to **Claude Design**
 (recommended — the brief is written for it) or any other design tool or designer, and comes back
-with a package at `design/`. What the package must contain, why, and the edge cases:
+with a package at `<design dir>/` — `design/`, or `design/<feature>/` when the app already has a
+design (Stage 1, `design-dir.sh`). What the package must contain, why, and the edge cases:
 `references/design-stage.md` (read it once, the first time this stage runs in a session).
 
-With `Design: existing`, skip a–c and go straight to d. (If `design/` is absent, `mkdir -p
-design`, tell the user its absolute path, and wait for **design ready**.)
+With `Design: existing`, skip a–c and go straight to d. (If `<design dir>/` is absent, `mkdir -p`
+it, tell the user its absolute path, and wait for **design ready**.)
 
 **a. Brief.** `cp "$RELAY_DIR/templates/DESIGN-BRIEF.md"
 "$RELAY_ROOT/DESIGN-BRIEF.md"` and fill the copy in place from `SPEC.md` and recon: the goal,
-platform and constraints, the existing design system (brownfield), the **anchor screen** (below),
+platform and constraints, the **anchor screen** (below),
 one block per screen with a stable kebab-case id, and **every state each screen must be drawn in — take them from
 `## Edge coverage`** (empty, error, loading, long content…), the copy `SPEC.md` fixes, Out of
 scope, and **"The design must not"** — every prohibition, constraint and Stage 2.6 research
@@ -677,9 +696,18 @@ implication a designer could break
 without knowing: third-party origins (fonts, icons, images from another domain), platform limits
 (no hover on touch, viewport widths), accessibility floors, asset licensing. The first real run's
 design loaded Google Fonts against a same-origin-only privacy criterion; saying so in the brief
-is cheaper than reconciling it afterwards. Leave "How we'll work" (its four stages) and "What to hand back" exactly as
+is cheaper than reconciling it afterwards. Leave the "How we'll work" section you keep and "What to hand back" exactly as
 written: the stages let the user settle the look on one screen before every screen is
 drawn, and `check-design.sh` verifies the hand-back contract.
+
+**An addition to an existing design** (`design-dir.sh` printed `existing:` lines) uses the
+brief's addition variant: keep `## How we'll work — adding to an existing app` and `## The
+existing design system`, delete the plain `## How we'll work` (for a new app, delete those two
+instead — the template's comment says so). Fill the existing system from the existing package's
+`HANDOFF.md` by section (`## Design tokens`, `## Components`; `grep -n '^## '` first) or, with no
+package, from the theme file; name the existing screens the new ones sit beside, with their PNG
+paths — the user attaches those files in the design tool. One take of the anchor, not three: the
+look is settled. A screen the feature changes is drawn again under its existing id.
 
 **The anchor screen** is where the design direction is set — three takes on it, then
 refinement, before any other screen exists. Pick the product's **canonical** screen: its home,
@@ -687,24 +715,25 @@ the one a returning user lands on when they open it. Never onboarding, settings,
 empty state, a sheet or a modal; if the app opens onto a menu or launcher that only routes to the
 main task, pick the screen where that task happens. Not the densest or most state-heavy screen —
 the most representative one. Name it with a one-line reason; the user can change it in the
-design tool.
+design tool. For an addition, the anchor is the new screen the user will see most — the feature's
+main screen.
 
 **b. Park the run.** `cp "$RELAY_DIR/templates/STATE.md" "$RELAY_ROOT/STATE.md"`, fill the title,
-`Run root:` and `Memory dir:`, and set `Status: AWAITING_DESIGN`. That makes the run visible to
+`Run root:`, `Memory dir:` and `Design dir:` (`<design dir>`), and set `Status: AWAITING_DESIGN`. That makes the run visible to
 Stage 0's active-run scan, so a new session can resume it. Stage 5 fills this file in rather than
 re-copying it.
 
 Then get the package's home and the paste ready:
 
 ```bash
-mkdir -p design                       # the user puts the export here; relay never searches for it
+mkdir -p "<design dir>"               # the user puts the export here; relay never searches for it
 awk 'f && (n || NF) {n=1; print} /^---$/ && !f {f=1}' "$RELAY_ROOT/DESIGN-BRIEF.md" > "$RELAY_ROOT/DESIGN-BRIEF.paste.md"
 pbcopy < "$RELAY_ROOT/DESIGN-BRIEF.paste.md" && echo "brief: on the clipboard"
 ```
 
 The paste file is everything below the brief's first `---` (the comment block above it is for
 you). Relay never looks for the export in `~/Downloads` or anywhere else: several exports can
-sit there, and a sandboxed session may not reach it — the user puts it in `design/`, which is
+sit there, and a sandboxed session may not reach it — the user puts it in `<design dir>/`, which is
 also why the folder exists before they leave.
 
 **c. Stop.** End the turn with the overview, the steps and — only when `pbcopy` failed — the
@@ -727,12 +756,19 @@ What happens in Claude Design — four stages, each ending with a stop for you:
 1. Open Claude Design (or any design tool or designer) and paste the brief as your first message.
 2. Work through the four stages.
 3. Export the package, and put its contents — `HANDOFF.md`, `screens/`, … — in
-   `<abs path>/design/` (created for you; the .zip itself is fine too).
+   `<abs path>/<design dir>/` (created for you; the .zip itself is fine too).
 4. Come back and say **design ready** — or, in a new session, run `/relay:goal resume`.
-   Relay checks the package and commits `design/` for you.
+   Relay checks the package and commits `<design dir>/` for you.
 
 Say **skip design** to plan without one, or **copy the brief** to put it on the clipboard again.
 ```
+
+For an addition, the overview's stage list reads: "What happens in Claude Design — three stages,
+each ending with a stop for you: 1. One take on `<anchor>` in the app's existing look — you say
+when it fits. 2. The other new screens and states, the same way. 3. You review, ask for changes,
+and say they're final — then it exports the package." and step 1 adds: "Attach the existing
+design first: `<abs path>/<existing package>/HANDOFF.md` and the pictures of `<existing
+screens>`." Its step 2 says "the three stages".
 
 When `pbcopy` is missing or fails (Linux, a sandbox), replace the first line with `Design brief
 ready (<path>). Paste this into Claude Design — or any design tool or designer:` and print the
@@ -743,17 +779,18 @@ after a resume), run the `pbcopy` line again.
 **d. Verify on return.** Settle and commit the package, then check it:
 
 ```bash
-bash "$RELAY_DIR/scripts/prepare-design.sh" design   # unzips a lone .zip, lifts a wrapper folder, commits design/ only
-bash "$RELAY_DIR/scripts/check-design.sh" design
+bash "$RELAY_DIR/scripts/prepare-design.sh" "<design dir>"   # unzips a lone .zip, lifts a wrapper folder, commits that folder only
+bash "$RELAY_DIR/scripts/check-design.sh" "<design dir>"
 ```
 
-`prepare-design.sh` is the one commit relay makes while planning: `design/` must be committed
+`prepare-design.sh` is the one commit relay makes while planning: `<design dir>/` must be committed
 (untracked files would count as run changes, and `SPEC.md` records the package's sha), and the
-user should not have to run git to hand back a design. The commit holds only `design/` —
-anything else the user has staged stays staged. It touches nothing outside `design/`; when it
+user should not have to run git to hand back a design. The commit holds only `<design dir>/` —
+anything else the user has staged stays staged, and an earlier package beside it is untouched. It
+touches nothing outside `<design dir>/`; when it
 cannot tell what to do (two zips, a name clash) its ❌ says what it found, and you pass that to
 the user and wait. Every `check-design.sh` ❌ names its fix (a missing screen PNG, a missing
-`### <id>` heading); a content fix is the user's — they fix the package in `design/` and say
+`### <id>` heading); a content fix is the user's — they fix the package in `<design dir>/` and say
 **design ready** again, and both commands re-run.
 ⚠ lines (no tokens, components or copy section) are not blockers — they mean that check will not
 exist; carry them to the Stage 6 summary. No deviations list means step e asks every conflict
@@ -765,8 +802,8 @@ now — before drafting the criteria, whose copy count depends on the list. Disp
 `general-purpose` subagent (it keeps the images out of your window) with this prompt:
 
 > Compare a design package's screen pictures with its typed copy list. Do not edit any file.
-> Read `design/HANDOFF.md`'s `## Copy` section only (`grep -n '^## ' design/HANDOFF.md`, then
-> read that range). Open each `design/screens/*.png` once; `<id>--<state>.png` belongs to screen
+> Read `<design dir>/HANDOFF.md`'s `## Copy` section only (`grep -n '^## ' <design dir>/HANDOFF.md`, then
+> read that range). Open each `<design dir>/screens/*.png` once; `<id>--<state>.png` belongs to screen
 > `<id>`. For each screen, list (1) text visible in its pictures that is on no list — check that
 > screen's `### <id>` group, then the other groups and the preamble, since shared strings such
 > as tab labels may be listed once — and (2) text whose wording differs between picture and
@@ -780,20 +817,21 @@ to the owner — up to four per `AskUserQuestion`, each as what they will see ("
 screen's empty state says 'Nothing yet' in the picture but 'No sessions yet' in the list"),
 options **Use the picture's wording** · **Keep the list's wording** · Other, recommending the
 picture unless it reads like a placeholder. Apply each answer to `## Copy`, log it in `SPEC.md`'s
-interview log, then re-run `prepare-design.sh design` (it commits the change) and
-`check-design.sh design`.
+interview log, then re-run `prepare-design.sh "<design dir>"` (it commits the change) and
+`check-design.sh "<design dir>"`.
 
 Then draft the fidelity criteria, numbered after the last `S<k>`. Decide the theme file the
 tokens phase will create (e.g. `src/theme/tokens.ts`) and any files generated from it that must
 carry a token value literally (e.g. `index.html` for `theme-color`, a web manifest) — generated,
-never hand-copied:
+never hand-copied. For an addition, the theme file is the one the app already has (it holds
+the existing tokens the package re-lists; any token marked new is added to it):
 
 ```bash
-bash "$RELAY_DIR/scripts/check-design.sh" design --criteria --start <k+1> --run-root "$RELAY_ROOT" \
+bash "$RELAY_DIR/scripts/check-design.sh" "<design dir>" --criteria --start <k+1> --run-root "$RELAY_ROOT" \
   --theme <theme file> [--allow <generated file or glob>]...
 ```
 
-Each drafted Acceptance line runs `<run-root>/check-design.sh design --verify <aspect>` — the
+Each drafted Acceptance line runs `<run-root>/check-design.sh <design dir> --verify <aspect>` — the
 same deterministic check for the phases and the audit (Stage 7 copies the script into the run).
 
 Read `SPEC.md` by section (`grep -n '^#'`, then the ranges you need) — never `cat` it whole;
@@ -801,7 +839,7 @@ the first resumed run overflowed its tool output doing that. `HANDOFF.md` is the
 whole once for step e.
 
 Add the printed criteria to `## Success criteria` and the printed rows to `## Edge coverage`,
-and add `**Design:** design/HANDOFF.md @ <sha from the inventory line>` under the `SPEC.md`
+and add `**Design:** <design dir>/HANDOFF.md @ <sha from the inventory line>` under the `SPEC.md`
 header. `validate-spec.sh` will now fail until step e records the reconciliation. The last criterion —
 screens captured for review — is the human check: it passes on a capture **or** a recorded
 reason, so it can never stall the run; the side-by-side comparison is the user's, after the run.
@@ -870,7 +908,7 @@ Break the work into **as many phases as the task actually needs** — no fixed c
 - Each phase delivers something **verifiable on its own** (it builds, it passes its own tests, you could ship it as a partial increment)
 - Phases have **explicit dependencies** (phase 3 depends on 1 and 2)
 - The **last phase is always a "Polish & Harden" phase** covering edge cases, error states, security, accessibility, copy, perf — this is how "every aspect is perfect" gets enforced
-- For UI work, include a dedicated **visual polish** phase with screenshot/visual evidence requirements. With a design package (Stage 2.7), the first UI phase builds the tokens and primitives from `design/HANDOFF.md §Design tokens` and creates the theme file the tokens criterion names, and the polish phase carries the screens-captured criterion (`references/design-stage.md`)
+- For UI work, include a dedicated **visual polish** phase with screenshot/visual evidence requirements. With a design package (Stage 2.7), the first UI phase builds the tokens and primitives from `<design dir>/HANDOFF.md §Design tokens` and creates the theme file the tokens criterion names (for an addition the theme file exists: the first phase that needs a new token adds it there), and the polish phase carries the screens-captured criterion (`references/design-stage.md`)
 - For brownfield, include an early **safety net** phase if test coverage is thin (add characterization tests before changing behavior)
 - **Each phase must fit one context window.** Every phase executes in its own subagent, cold, from a brief — so a phase too large for one window fails the whole run. Estimate the files each phase touches (new + modified). **Over 12, split it** at a seam: usually a layer (types vs. behavior), a surface (one screen vs. the next), or a caller cluster in a migration. A phase that is one coherent unit with no clean seam may stay over 12 — say why on the line: `Estimated files: 14 — <why it can't split>`; a split at no real seam makes the design worse. Record the estimate as `Estimated files: <n>` in the spec header; `validate-phase.sh` warns above the threshold without a reason (`RELAY_PHASE_FILE_LIMIT` overrides it). File count is only half of size: what a phase **reads** fills its window (see Stage 6a).
 
@@ -911,7 +949,7 @@ principles) — the tunez planner made both of those changes here as "one more s
 Three files, all under `$RELAY_ROOT/`:
 
 1. **`ROADMAP.md`** — the plan (template at `$RELAY_DIR/templates/ROADMAP.md`). Each phase's `**Deliverables:**` is a bullet list, one `` `path/or/glob` — what it is `` per line (`none — <why>` for a phase that only changes earlier phases' files) — never a pointer to the phase spec: the audit runs `repo-state.sh deliverable` on each path, and tunez's "see `phases/phase-N.md` §Work" lines left it rebuilding 146 paths from prose. Check them with `bash $RELAY_DIR/scripts/validate-phase.sh --roadmap "$RELAY_ROOT/ROADMAP.md"`.
-2. **`STATE.md`** — live progress file the orchestrator records into after each report (via `record-phase.sh`) (template at `$RELAY_DIR/templates/STATE.md`; if Stage 2.7 already created it, fill that copy in). Fill `Memory dir:` with `$MEM_DIR` from Stage 0 — the `/goal` session has no other way to find where memory writeback goes. Fill `Cleanup:` (`on`, or `off — <reason>`) and `Security pass:` (`yes`, or `skip — <reason>`) from Stage 4 — `record-phase.sh` routes the run by them, and a missing field means the step never runs. Fill `Push:` (`on`, or `off — <reason>`) too — `relay-git.sh` reads it, and a missing field means the old push-after-the-audit behaviour, not off.
+2. **`STATE.md`** — live progress file the orchestrator records into after each report (via `record-phase.sh`) (template at `$RELAY_DIR/templates/STATE.md`; if Stage 2.7 already created it, fill that copy in). Fill `Memory dir:` with `$MEM_DIR` from Stage 0 — the `/goal` session has no other way to find where memory writeback goes. Fill `Design dir:` with `<design dir>` (`none` without a design stage; Stage 2.7b may have filled it already). Fill `Cleanup:` (`on`, or `off — <reason>`) and `Security pass:` (`yes`, or `skip — <reason>`) from Stage 4 — `record-phase.sh` routes the run by them, and a missing field means the step never runs. Fill `Push:` (`on`, or `off — <reason>`) too — `relay-git.sh` reads it, and a missing field means the old push-after-the-audit behaviour, not off.
 3. **`phases/phase-N.md`** — one work-spec file per phase (template at `$RELAY_DIR/templates/phase-goal.txt`, renamed conceptually to "phase spec"). **Any length** — these are read from disk by the executor, not passed to `/goal`, so no char budget.
 
 Each phase spec must include these markers so the agent and evaluator both have stable anchors:
@@ -945,7 +983,7 @@ It resolves each seed against `$RELAY_ROOT/graph/graph.json` (when Stage 2 built
 
 **Exemplars.** Give every phase a `## Exemplars` section naming 2–3 **existing** files whose patterns the phase must match — "follow the control pattern in `Sources/App/UI/Controls.swift`; match the test shape in `Tests/SchedulerTests.swift`". Write them now, while recon context is warm: this is the only moment anything sees the codebase holistically, and the subagent that executes the phase starts cold and opens these files first. Greenfield phase 1 may say `- none yet (first code in the repo)`; every later phase names files earlier phases created. `validate-phase.sh` warns when the section is missing.
 
-**Design package (Stage 2.7).** A phase that builds a screen names, in its Work, the file that gets the screen's `design: <id>` comment — the screens-built criterion counts exactly one per id. It also gates that screen's wording: an acceptance criterion and mandatory command `bash <run-root>/check-design.sh design --verify copy --screen <id> --except <run-root>/SPEC.md` (one `--screen` per screen the phase builds) — the run-wide copy check stays on the last screen phase and Polish & Harden (`references/phase-design.md`, UI redesign shape). Its `## Exemplars` cite the design by section and file next to the code exemplars — `design/HANDOFF.md §overlay`, `design/screens/overlay.png` — never `design/source/` and never all of `HANDOFF.md` when one section will do.
+**Design package (Stage 2.7).** A phase that builds a screen names, in its Work, the file that gets the screen's `design: <id>` comment — the screens-built criterion counts exactly one per id. It also gates that screen's wording: an acceptance criterion and mandatory command `bash <run-root>/check-design.sh <design dir> --verify copy --screen <id> --except <run-root>/SPEC.md` (one `--screen` per screen the phase builds) — the run-wide copy check stays on the last screen phase and Polish & Harden (`references/phase-design.md`, UI redesign shape). Its `## Exemplars` cite the design by section and file next to the code exemplars — `<design dir>/HANDOFF.md §overlay`, `<design dir>/screens/overlay.png` — never a package's `source/` and never all of `HANDOFF.md` when one section will do. For an addition, the code exemplars include the existing screens the new one must match (their files), and a changed existing screen's Work names the file that already carries its `design: <id>` marker.
 
 **Research (Stage 2.6).** A phase whose work a research answer shapes cites it by section —
 `research/pitch-detection.md §Implications for this plan` — and copies the specific fact it
@@ -1025,7 +1063,7 @@ Spec (<run-root>/SPEC.md) — what the audit will grade against:
   Changed after you answered (each one asked): <what — you said … → now …>   (or: "none")
   Research: <n> questions — <a> answered, <u> unverified finding(s), <c> contradiction(s) resolved
     (or: "none — <reason>")
-  Design: design/HANDOFF.md @ <sha> — <S> screens · fidelity S<a>–S<b><, no tokens/components/copy check: …>
+  Design: <design dir>/HANDOFF.md @ <sha> — <S> screens · fidelity S<a>–S<b><, no tokens/components/copy check: …>
     · pictures vs copy list: <no differences | n differences, each decided by you>
     (or: "skipped" · or omit the line when there was no design stage)
 
@@ -1054,7 +1092,7 @@ Push: off — <branch> stays local; say "push on" to push it after the audit
 Worth your eye (<K> of <N> criteria):
   - Phase <n> (human eye): <criterion>
   - Phase <n> (outside the repo): <criterion>
-  - Design (after the run): compare <run-root>/design-check/<id>.png with design/screens/<id>.png
+  - Design (after the run): compare <run-root>/design-check/<id>.png with <design dir>/screens/<id>.png
     (the audit retakes them at the end, so they show the finished build)
   (or: "none — every criterion is checkable inside the repo")
 
@@ -1261,8 +1299,9 @@ To change the orchestrator, edit `templates/PROTOCOL.md`; to change what a subag
 - `scripts/edge-probe.py` — classifies each success criterion by shape and raises only the edge categories that apply to it (closed 8-item taxonomy); a floor to union with, never to narrow. `--check <SPEC.md>` enforces the floor (called by `validate-spec.sh`)
 - `scripts/build-rubric.sh` — compiles every phase's acceptance criteria and mandatory commands into `<run-root>/RUBRIC.md` and flags the ones worth a human look (Stage 6; planner-only)
 - `scripts/check-research.sh` — validates the Stage 2.6 research (index, one sourced answer per question, a `Contradicts:` line each); `--digest` prints only the answers, implications and contradictions; `--only <slug>` checks one answer — the researcher's own check before it returns (planner-only)
-- `scripts/prepare-design.sh` — settles the export the user put in `design/` (unzips a lone zip, lifts a wrapper folder) and commits `design/` only (Stage 2.7d; planner-only)
-- `scripts/check-design.sh` — verifies the design package at `design/` (HANDOFF.md + one PNG per approved screen required, committed); `--criteria` drafts the design-fidelity success criteria plus their edge rows (Stage 2.7); `--verify <aspect>` checks the built code against the package — the command those criteria name (copied to `<run-root>/` at dispatch)
+- `scripts/design-dir.sh` — picks the run's design folder: `design`, or `design/<feature>` beside an existing package, listing each earlier package (Stage 1; planner-only)
+- `scripts/prepare-design.sh` — settles the export the user put in the run's design folder (unzips a lone zip, lifts a wrapper folder) and commits that folder only (Stage 2.7d; planner-only)
+- `scripts/check-design.sh` — verifies the run's design package (`design/` or `design/<feature>/`) (HANDOFF.md + one PNG per approved screen required, committed); `--criteria` drafts the design-fidelity success criteria plus their edge rows (Stage 2.7); `--verify <aspect>` checks the built code against the package — the command those criteria name (copied to `<run-root>/` at dispatch)
 - `scripts/check-seeds.sh` — checks every phase's `Map seeds:` resolves to a symbol in the plan-time graph or one an earlier phase's spec names, i.e. something that will exist when the phase runs (Stage 5; planner-only)
 - `scripts/recover.sh` — after an interruption, settles the dispatch that was in flight (the window died with the old process → recorded as interrupted and re-dispatched; still running → keep waiting; finished but unrecorded → echo and record), from the `phases/in-flight` file `assemble-brief.sh` writes (copied to `<run-root>/recover.sh` at dispatch)
 - `scripts/resume-line.sh` — prints the ready-to-paste `/goal` that restarts a blocked run from the phases that remain, and warns when uncommitted work would land in the resumed phase's commit (read-only; copied to `<run-root>/` at dispatch)

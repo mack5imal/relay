@@ -709,6 +709,18 @@ coverage_line() {
   echo "Audit coverage: $re re-verified, $tp trust-prior ($share)$depth."
 }
 
+# design_dir — the run's design package folder, from SPEC.md's `**Design:** <dir>/HANDOFF.md @ <sha>`:
+# design/, or design/<feature>/ when the run added screens to an app that already had a design.
+# No SPEC.md or no such line (older runs) → design.
+design_dir() {
+  local d=""
+  if [ -f "$runroot/SPEC.md" ]; then
+    d="$(awk '/^\*\*Design:\*\*[[:space:]]*[^[:space:]]+\/HANDOFF\.md[[:space:]]*@/ {
+      p = $0; sub(/^\*\*Design:\*\*[[:space:]]*/, "", p); sub(/\/HANDOFF\.md.*/, "", p); print p; exit }' "$runroot/SPEC.md")"
+  fi
+  printf '%s' "${d:-design}"
+}
+
 # completion_lines — the lines RELAY_RUN_COMPLETE copies, each on its own line after the summary:
 # a ⚠ line when a correctness / security finding stayed open or a check was skipped, the audit
 # coverage line (always; with its own ⚠ banner when trust-prior is over 30%), the findings counts
@@ -738,7 +750,7 @@ completion_lines() {
   v="$(field_after AUDIT_COMPLETE 'Design captures')"
   case "$v" in
     "") ;;
-    [Rr]etaken*) out="$out${nl}Design captures: retaken at the end — compare $runroot/design-check/<id>.png with design/screens/<id>.png" ;;
+    [Rr]etaken*) out="$out${nl}Design captures: retaken at the end — compare $runroot/design-check/<id>.png with $(design_dir)/screens/<id>.png" ;;
     [Nn]ot\ retaken*)
       v="$(printf '%s' "$v" | sed -E 's/^[Nn]ot retaken[[:space:]]*[—–-]*[[:space:]]*//')"
       out="$out${nl}⚠ Design captures: may be out of date — not retaken${v:+: $v}" ;;

@@ -66,6 +66,13 @@ criterion and a mandatory command, so a screen's wording is checked by the phase
 tunez gated all 14 screens' copy in one phase, which inherited 58 misses from the phases before
 it and spent its window repairing their screens.
 
+**Adding screens to an app that already has a design** (the package is `design/<feature>/`): the
+theme file and primitives exist, so there is no tokens-and-primitives phase — the first phase that
+needs a token marked new adds it to the existing theme file. Each content phase cites the new
+package's `§<screen-id>` and picture, plus the existing screens' code it must match as code
+exemplars; a phase that changes an existing screen edits the file that already carries its
+`design: <id>` marker and gates the changed copy with `--screen <id>`.
+
 ## Acceptance criteria — the test of a good phase
 
 Each phase's acceptance criteria should be:

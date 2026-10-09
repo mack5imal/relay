@@ -494,6 +494,98 @@ assert_missing "F major is not checked" "F major" "$OUT"
 
 # ---------------------------------------------------------------------------
 echo
+echo "[5h] Adding screens to an app that already has a design: a package in design/<feature>/"
+# The app (fixture package at design/, built source) gets a feature: a new screen `drills`, a
+# changed `settings` (keeps its id and existing marker), one new token and one new component.
+# The new package re-lists the existing token it uses, as an addition brief asks.
+built vadd
+P="$R/design/practice"; mkdir -p "$P/screens"
+cp "$R/design/screens/settings.png" "$P/screens/settings.png"; cp "$R/design/screens/settings.png" "$P/screens/drills.png"
+cat > "$P/HANDOFF.md" <<'MD'
+# Handoff: breakr — practice drills
+
+## Approved screens
+
+| id | name | files |
+|---|---|---|
+| `drills` | Practice drills | `drills.png` |
+| `settings` | Settings window | `settings.png` |
+
+## Design tokens
+
+| name | value | usage |
+|---|---|---|
+| `ink` | `#08161f` | text (existing) |
+| `drill-accent` | `#ff8800` | drill progress (new) |
+
+## Components
+
+- `TimerDisc` — existing
+- `DrillCard` — one drill (new)
+
+## Screens
+
+### drills — Practice drills
+
+A list of drills.
+
+### settings — Settings window
+
+Adds a reminders toggle.
+
+## Deviations from the brief
+
+- None
+
+## Copy
+
+### drills
+- `Start the drill`
+
+### settings
+- `Launch at login`
+- `Drill reminders`
+MD
+printf -- '- `Drill reminders`\n' >> "$R/design/HANDOFF.md"   # the earlier package happens to list it too
+g add -A design && g commit -qm "design: practice"
+run bash "$CD" "$P"
+assert_rc "the new package checks out on its own" 0
+assert_contains "… inventory of the new package" "design: 2 screens, 2 tokens, 2 components, 3 copy strings" "$OUT"
+run bash "$CD" "$P" --verify tokens $V
+assert_rc "a new token not yet built fails" 1
+assert_contains "… naming it" "tokens: 'drill-accent' — not defined in src/theme/tokens.ts" "$OUT"
+assert_missing "the earlier package's token table is not app code" "hard-coded in design/HANDOFF.md" "$OUT"
+printf "export const more = { drillAccent: '#ff8800' };\n" >> "$R/src/theme/tokens.ts"; g add -A src && g commit -qm tok
+run bash "$CD" "$P" --verify tokens $V
+assert_rc "with the new token in the existing theme file, tokens pass" 0
+run bash "$CD" "$P" --verify copy
+assert_rc "copy the app does not show fails" 1
+assert_contains "… even when the earlier package lists it" '"Drill reminders" — not found verbatim' "$OUT"
+assert_contains "… and the new screen's string" '"Start the drill" — not found verbatim' "$OUT"
+run bash "$CD" "$P" --verify screens
+assert_rc "a new screen with no marker fails" 1
+assert_contains "… naming it" "screens: 'drills' — no file carries 'design: drills'" "$OUT"
+assert_missing "a changed screen keeps its existing marker" "screens: 'settings'" "$OUT"
+run bash "$CD" "$P" --verify components
+assert_contains "a new component must be built" "components: 'DrillCard' — not found in source" "$OUT"
+assert_missing "an existing one is already there" "'TimerDisc'" "$OUT"
+printf '// design: drills\nexport function DrillCard() { return "Start the drill" }\nconst r = "Drill reminders";\n' > "$R/src/Drills.tsx"; g add -A src && g commit -qm drills
+run bash "$CD" "$P" --verify all $V
+assert_rc "the built feature passes --verify all" 0
+run bash "$CD" "$R/design" --verify all $V
+assert_rc "the earlier package still passes, the new one not read as app code" 0
+run bash "$CD" "$P" --criteria --run-root .relay/run2 --theme src/theme/tokens.ts
+assert_contains "criteria run the check on the new package" "\`bash .relay/run2/check-design.sh design/practice --verify screens --except .relay/run2/SPEC.md\`" "$OUT"
+assert_contains "… cite its handoff" "\`design/practice/HANDOFF.md\`" "$OUT"
+assert_contains "… and its screenshots" "\`design/practice/screens/<id>.png\`" "$OUT"
+assert_contains "… and say outside design/ (every package)" "in exactly one source file outside \`design/\`" "$OUT"
+assert_missing "… never the old package's command" "check-design.sh design --verify" "$OUT"
+rm -rf "$R/.git"
+run env GIT_CEILING_DIRECTORIES="$W" bash "$CD" "$P" --verify all $V
+assert_rc "no git: the nested package is checked against the project's src/, not design/" 0
+
+# ---------------------------------------------------------------------------
+echo
 echo "[6] Usage errors"
 run bash "$CD"
 assert_rc "no args exits 2" 2

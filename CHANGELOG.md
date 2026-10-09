@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Adding screens to an app that already has a design.** When the app already has a design
+  package from an earlier run, the new screens' design goes in its own folder beside it,
+  `design/<feature>/`, and the earlier package is left untouched. The brief asks the designer to
+  match the existing look, colours, components and nearby screens instead of proposing three new
+  directions. The design checks now leave every design folder out of what they treat as app
+  code: before, an earlier package's colour table failed a correct build and its wording passed
+  missing text. The drafted checks name the right folder; they used to check the old package.
+
 - **The final audit reads the tests behind your success criteria.** A passing test only proves
   what it asserts, so for each success criterion the audit now checks that its tests use the
   same thresholds, exercise the situations the criterion names, actually run, and work out the
