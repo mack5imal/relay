@@ -114,6 +114,50 @@ else
 fi
 
 echo
+echo "[7] A design that is not a relay package is listed as elsewhere:"
+proj handoff
+mkdir -p design_handoff_app/screenshots design_handoff_app/screenshots/old
+printf 'png' > design_handoff_app/screenshots/a.png; printf 'png' > design_handoff_app/screenshots/b.PNG
+printf 'png' > design_handoff_app/screenshots/old/c.jpg
+printf '# Handoff\n\n## Design tokens\n- ink #08161f\n' > design_handoff_app/README.md
+printf 'x' > design_handoff_app/support.js
+git add -A && git commit -qm "old handoff"
+run bash "$DD" library
+assert_rc "exits 0" 0
+assert_contains "no relay package, so the run's folder is design" "Design dir: design" "$OUT"
+assert_contains "the export is listed once, at its top folder, with what it holds" "elsewhere: design_handoff_app — 3 images, 1 design doc" "$OUT"
+assert_missing "… never a nested folder of it" "elsewhere: design_handoff_app/" "$OUT"
+mkdir -p docs/mockups && printf 'pdf' > docs/mockups/flow.pdf
+printf '# Style\n\n### Design Tokens\n| a | b |\n' > STYLE.md
+printf '# Notes\n\nWe discussed design tokens.\n' > NOTES.md
+mkdir -p src/design-system/icons && printf '<svg/>' > src/design-system/icons/x.svg && printf 'x' > src/design-system/Button.tsx
+mkdir -p brand && printf 'png' > brand/logo.png
+mkdir -p a/b/c/mockups && printf 'png' > a/b/c/mockups/deep.png
+mkdir -p old-design && printf 'png' > old-design/x.png && printf 'old-design/\n' > .gitignore
+run bash "$DD" library
+assert_contains "an untracked mockups folder deeper in counts" "elsewhere: docs/mockups — 1 image, 0 design docs" "$OUT"
+assert_contains "a token doc anywhere else is listed on its own" "elsewhere: STYLE.md — 0 images, 1 design doc" "$OUT"
+assert_missing "mentioning design tokens is not a heading" "NOTES.md" "$OUT"
+assert_missing "a design-system folder of code and svg icons is not a design" "src/design-system" "$OUT"
+assert_missing "brand assets are the app's, not a design" "brand" "$OUT"
+assert_missing "deeper than three levels is not searched" "a/b/c/mockups" "$OUT"
+assert_missing "gitignored folders never count" "old-design" "$OUT"
+cp -R "$FIX" design && git add -A && git commit -qm "design: handoff"
+run bash "$DD" library
+assert_contains "beside a relay package: the package as before" "existing: design — 3 screens" "$OUT"
+assert_contains "… and the other design still listed" "elsewhere: design_handoff_app — 3 images, 1 design doc" "$OUT"
+assert_missing "… the relay package is never an elsewhere" "elsewhere: design —" "$OUT"
+rm -rf .git
+run bash "$DD" library
+assert_contains "without git, the export is still found" "elsewhere: design_handoff_app — 3 images, 1 design doc" "$OUT"
+if command -v zsh >/dev/null 2>&1; then
+  OUT="$(zsh -c "bash '$DD' library" 2>&1)"; RC=$?
+  assert_contains "under zsh too" "elsewhere: design_handoff_app" "$OUT"
+else
+  echo "  (zsh not installed — skipped)"
+fi
+
+echo
 echo "----------------------------------------"
 printf 'Results: %d passed, %d failed\n' "$pass" "$fail"
 if [ "$fail" -gt 0 ]; then

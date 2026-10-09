@@ -2,10 +2,11 @@
 # check-design.sh — verify a design handoff package and draft its fidelity criteria
 #
 # Usage: check-design.sh <design-dir> [--criteria] [--start <k>] [--run-root <path>]
-#                          [--theme <path>] [--allow <glob>]... [--except <SPEC.md>]
+#                          [--theme <path>] [--allow <glob>]... [--except <SPEC.md>] [--ignore <path>]...
 #        check-design.sh <design-dir> --verify <screens|components|tokens|copy|all>
-#                          [--theme <path>] [--allow <glob>]... [--except <SPEC.md>]
+#                          [--theme <path>] [--allow <glob>]... [--except <SPEC.md>] [--ignore <path>]...
 #                          [--screen <id>]...      (copy only)
+#        check-design.sh <design-dir> --overlap [--ignore <path>]...
 #
 # Why this exists: Stage 2.7 hands the user a design brief and stops. They come back with a
 # package from Claude Design (recommended) or any other tool or designer, committed at design/
@@ -42,14 +43,15 @@
 #            criteria's Acceptance lines name, so phases and the audit run one deterministic check
 #            instead of hundreds of agent greps. Source = every tracked and untracked file outside
 #            design/ (every package in it, not only this one — an earlier package's token table
-#            and copy would otherwise read as the app's code) and .relay/ (git), or outside those,
-#            .git/ and node_modules/ (no git).
+#            and copy would otherwise read as the app's code), .relay/ and the --ignore paths (git), or
+#            outside those, .git/ and node_modules/ (no git).
 #              screens     each approved id is marked `design: <id>` in exactly one file
 #              components  each §Components name appears as a whole word
 #              tokens      each token name (lowercased, - and _ removed) appears in --theme, and no
 #                          hex value in a token's value cell (every one: `light #… · dark #…`)
 #                          appears outside --theme and the --allow globs (files generated from
-#                          the theme, e.g. index.html's theme-color)
+#                          the theme, e.g. index.html's theme-color, or a test that checks the
+#                          theme's values)
 #              copy        each §Copy string, split on {name} placeholders, has every fragment of
 #                          3+ characters present verbatim, a one-word fragment as a whole word —
 #                          outside code comments: comments are stripped first (tunez's builders
@@ -64,6 +66,20 @@
 #            --except reads SPEC.md's `## Design reconciliation` rows resolved "spec wins" and
 #            exempts the `screen:` / `component:` / `token:` / `copy:` item each names.
 #
+# --ignore   (repeatable, a path from the project root) leave this folder or file out of the
+#            source, like design/: the app's earlier design when it is not a relay package
+#            (a design-tool export, a mockups folder, a DESIGN.md token table — design-dir.sh's
+#            `elsewhere:` lines) and old planning or run folders. Their colour lists and wording
+#            would otherwise read as the app's code: a colour in an old README fails the token
+#            check, a string in an old mockup passes the copy check. --criteria writes the flags
+#            into every Acceptance command, so the phases and the audit skip the same paths.
+#
+# --overlap  before the build (Stage 2.7d): every source file that already holds one of the
+#            package's token colour values or copy strings — `overlap: <file> — <t> colour
+#            values, <c> copy strings` — so the planner can sort them before drafting criteria:
+#            not part of the app → --ignore, an app file that must carry a value (a theme test, a
+#            generated file) → --allow, app source → left alone. Read-only; exits 0.
+#
 # Deterministic. Planner (verification, --criteria) and run (--verify; copied into the run root
 # at Stage 7).
 # Prints `design: <S> screens, <T> tokens, <C> components, <P> copy strings @ <sha>` plus one line
@@ -72,14 +88,15 @@
 set -uo pipefail
 
 usage() {
-  echo "usage: check-design.sh <design-dir> [--criteria] [--start <k>] [--run-root <path>] [--theme <path>] [--allow <glob>]... [--except <SPEC.md>]" >&2
-  echo "       check-design.sh <design-dir> --verify <screens|components|tokens|copy|all> [--theme <path>] [--allow <glob>]... [--except <SPEC.md>] [--screen <id>]..." >&2
+  echo "usage: check-design.sh <design-dir> [--criteria] [--start <k>] [--run-root <path>] [--theme <path>] [--allow <glob>]... [--except <SPEC.md>] [--ignore <path>]..." >&2
+  echo "       check-design.sh <design-dir> --verify <screens|components|tokens|copy|all> [--theme <path>] [--allow <glob>]... [--except <SPEC.md>] [--ignore <path>]... [--screen <id>]..." >&2
+  echo "       check-design.sh <design-dir> --overlap [--ignore <path>]..." >&2
   exit 2
 }
 
 [[ $# -ge 1 && -n "$1" ]] || usage
 dir="${1%/}"; shift
-criteria=0; start=1; runroot="<run-root>"; verify=""; theme=""; allows=(); except_spec=""; only=()
+criteria=0; start=1; runroot="<run-root>"; verify=""; theme=""; allows=(); except_spec=""; only=(); ignores=(); overlap=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --criteria) criteria=1; shift ;;
@@ -88,6 +105,8 @@ while [[ $# -gt 0 ]]; do
     --allow) [[ $# -ge 2 && -n "$2" ]] || usage; allows+=("$2"); shift 2 ;;
     --except) [[ $# -ge 2 && -n "$2" ]] || usage; except_spec="$2"; shift 2 ;;
     --screen) [[ $# -ge 2 && -n "$2" ]] || usage; only+=("$2"); shift 2 ;;
+    --ignore) [[ $# -ge 2 && -n "$2" ]] || usage; g="${2#./}"; g="${g%/}"; [[ -n "$g" && "$g" != . ]] || usage; ignores+=("$g"); shift 2 ;;
+    --overlap) overlap=1; shift ;;
     --start) [[ $# -ge 2 && "$2" =~ ^[0-9]+$ ]] || usage; start="$2"; shift 2 ;;
     --run-root) [[ $# -ge 2 && -n "$2" ]] || usage; runroot="${2%/}"; shift 2 ;;
     *) usage ;;
@@ -96,6 +115,7 @@ done
 [[ -d "$dir" ]] || { echo "check-design.sh: no design directory at $dir" >&2; exit 2; }
 [[ -z "$verify" || $criteria -eq 0 ]] || usage
 [[ ${#only[@]} -eq 0 || "$verify" == copy ]] || usage
+[[ $overlap -eq 0 || ( -z "$verify" && $criteria -eq 0 ) ]] || usage
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -238,11 +258,82 @@ else
 fi
 
 # ---------------------------------------------------------------------------------------------
+# The app's source: every tracked and untracked file outside design/ (every package), .relay/ and
+# the --ignore paths (git), or outside those, .git/ and node_modules/ (no git). NUL-separated,
+# relative to $ptop, written to the file named by $1.
+source_list() {
+  local out="$1" g f
+  if [[ $pgit -eq 1 ]]; then
+    local spec=(. ":!$proot" ':!.relay')
+    for g in ${ignores[@]+"${ignores[@]}"}; do spec+=(":!$g"); done
+    git -C "$ptop" -c core.quotePath=false ls-files -z --cached --others --exclude-standard -- "${spec[@]}" > "$out.all"
+    : > "$out"
+    while IFS= read -r -d '' f; do [[ -f "$ptop/$f" ]] && printf '%s\0' "$f" >> "$out"; done < "$out.all"
+    rm -f "$out.all"
+  else
+    local ex=(-not -path './.git/*' -not -path './node_modules/*' -not -path "./$proot/*" -not -path './.relay/*')
+    for g in ${ignores[@]+"${ignores[@]}"}; do ex+=(-not -path "./$g" -not -path "./$g/*"); done
+    (cd "$ptop" && find . -type f "${ex[@]}" | sed 's#^\./##' | tr '\n' '\0') > "$out"
+  fi
+}
+
+# fragments — the copy strings on stdin split on {name} placeholders, trimmed, 3+ characters
+fragments() {
+  awk '{ gsub(/\{[^}]*\}/, "\n"); print }' \
+    | awk '{ sub(/^[[:space:]]+/, ""); sub(/[[:space:]]+$/, ""); if (length($0) >= 3) print }'
+}
+
+# ---------------------------------------------------------------------------------------------
+# --overlap: what the source already holds of the package, before anything is built.
+if [[ $overlap -eq 1 ]]; then
+  [[ $errors -eq 0 ]] || { echo "overlap: the design package itself is broken — fix it first"; exit 1; }
+  srclist="$(mktemp)"; source_list "$srclist"
+  hexfile="$(mktemp)"; fragfile="$(mktemp)"
+  for v in ${values[@]+"${values[@]}"}; do hexes "$v"; done | awk '!seen[tolower($0)]++' > "$hexfile"
+  for c in ${copies[@]+"${copies[@]}"}; do printf '%s\n' "$c"; done | fragments | sort -u > "$fragfile"
+  # Colours are counted in the raw text (as --verify tokens reads it), copy with code comments
+  # stripped (as --verify copy reads it). A one-word fragment counts only as a whole word.
+  res="$( (cd "$ptop" && xargs -0 perl -e '
+      my ($hf, $ff) = (shift, shift);
+      open my $h, "<", $hf or die; chomp(my @hex = <$h>); close $h;
+      open my $g, "<", $ff or die; chomp(my @frag = <$g>); close $g;
+      for my $file (@ARGV) {
+        next unless -T $file;
+        open my $fh, "<", $file or next; local $/; my $raw = <$fh>; close $fh;
+        my $t = 0; for my $x (@hex) { $t++ if $raw =~ /\Q$x\E(?![0-9A-Fa-f])/i }
+        my $src = $raw;
+        $src =~ s#(^|[\s{;(,=])/\*.*?\*/#$1 #gs; $src =~ s#<!--.*?--># #gs; $src =~ s#(^|[ \t])//[^\n]*#$1#gm;
+        my $c = 0;
+        for my $w (@frag) {
+          if ($w =~ /\s/) { $c++ if index($src, $w) >= 0 }
+          else { $c++ if $src =~ /(?<![A-Za-z0-9_])\Q$w\E(?![A-Za-z0-9_])/ }
+        }
+        print "$file\t$t\t$c\n" if $t + $c > 0;
+      }' "$hexfile" "$fragfile" < "$srclist") 2>/dev/null | sort)"
+  rm -f "$srclist" "$hexfile" "$fragfile"
+  # At most 60 file lines, so a large repo cannot flood the planner's window; the count is whole.
+  n=0
+  while IFS=$'\t' read -r f t c; do
+    [[ -n "$f" ]] || continue
+    n=$((n + 1))
+    [[ $n -le 60 ]] && echo "overlap: $f — $t colour value$([[ $t -eq 1 ]] || printf s), $c copy string$([[ $c -eq 1 ]] || printf s)"
+  done <<< "$res"
+  [[ $n -gt 60 ]] && echo "overlap: … and $((n - 60)) more — skip whole folders with --ignore and run it again"
+  skipped=""; [[ ${#ignores[@]} -gt 0 ]] && skipped=" (skipped: $(join_sp "${ignores[@]}"))"
+  if [[ $n -eq 0 ]]; then
+    echo "overlap: none — no file outside $proot/ holds the package's colours or wording$skipped"
+  else
+    echo "overlap: $n file$([[ $n -eq 1 ]] || printf s) outside $proot/ already hold the package's colours or wording$skipped — sort each: not part of the app → --ignore, a file that must carry a value → --allow, app source → leave it"
+  fi
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------------------------
 # --verify: hold the built code to the package. Runs inside the build, so design/ being
 # committed is not re-checked here; a broken package still fails (nothing to verify against).
 if [[ -n "$verify" ]]; then
   [[ $errors -eq 0 ]] || { echo "verify: the design package itself is broken — fix it first"; exit 1; }
-  top="$ptop"; vgit=$pgit; drel="$prel"
+  top="$ptop"; drel="$prel"
 
   # Exemptions: `## Design reconciliation` rows whose Resolution starts "spec wins".
   ex_screen=""; ex_comp=""; ex_token=""; exfile="$(mktemp)"
@@ -277,16 +368,7 @@ if [[ -n "$verify" ]]; then
   done
 
   # Source files, NUL-separated, relative to $top.
-  srclist="$(mktemp)"
-  if [[ $vgit -eq 1 ]]; then
-    git -C "$top" ls-files -z --cached --others --exclude-standard -- . ":!$proot" ':!.relay' > "$srclist.all"
-    : > "$srclist"
-    while IFS= read -r -d '' f; do [[ -f "$top/$f" ]] && printf '%s\0' "$f" >> "$srclist"; done < "$srclist.all"
-    rm -f "$srclist.all"
-  else
-    (cd "$top" && find . -type f -not -path './.git/*' -not -path './node_modules/*' \
-      -not -path "./$proot/*" -not -path './.relay/*' | sed 's#^\./##' | tr '\n' '\0') > "$srclist"
-  fi
+  srclist="$(mktemp)"; source_list "$srclist"
   # files_with <grep-args...> — the source files matching, one per line (pass patterns with -e)
   files_with() { (cd "$top" && xargs -0 grep -lI "$@" < "$srclist" 2>/dev/null) | sort -u; }
 
@@ -368,8 +450,7 @@ if [[ -n "$verify" ]]; then
       fi
       grep -qxF -- "$c" "$exfile" 2>/dev/null && continue
       vchecked=$((vchecked + 1))
-      printf '%s\n' "$c" | awk '{ gsub(/\{[^}]*\}/, "\n"); print }' \
-        | awk '{ sub(/^[[:space:]]+/, ""); sub(/[[:space:]]+$/, ""); if (length($0) >= 3) print }' >> "$frags"
+      printf '%s\n' "$c" | fragments >> "$frags"
     done
     sort -u "$frags" -o "$frags"
     # A one-word fragment ("Trends", "Close") must match as a whole word (fix 22), so `onClose`
@@ -431,13 +512,21 @@ k=$start
 thm="${theme:-<theme file>}"
 vcmd="bash $runroot/check-design.sh $prel"
 vargs=" --except $runroot/SPEC.md"
+# --ignore paths travel in every command, and the prose names them: "outside `design/`" alone
+# would tell a phase the earlier design material counts as source.
+outside="\`$proot/\`"; capex=""
+if [[ ${#ignores[@]} -gt 0 ]]; then
+  ig_list="$(for g in "${ignores[@]}"; do printf '`%s` ' "$g"; done | sed 's/ $//; s/` `/`, `/g')"
+  outside="$outside and the earlier design material ($ig_list)"
+  for g in "${ignores[@]}"; do vargs="$vargs --ignore '$g'"; capex="$capex ':!$g'"; done
+fi
 tokargs=" --theme $thm"
 for g in ${allows[@]+"${allows[@]}"}; do tokargs="$tokargs --allow '$g'"; done
 exnote="Items resolved \"spec wins\" in \`## Design reconciliation\` are exempt."
 kinds=""   # "S7=screens S8=components ..." — which reason table each drafted criterion uses
 
 emit() {
-echo "- **S$k — Design: every approved screen is built**: each approved screen in \`$prel/HANDOFF.md\` ($quoted_ids) is marked by a \`design: <id>\` comment in exactly one source file outside \`$proot/\`."
+echo "- **S$k — Design: every approved screen is built**: each approved screen in \`$prel/HANDOFF.md\` ($quoted_ids) is marked by a \`design: <id>\` comment in exactly one source file outside $outside."
 echo "  - Current: the screens exist only as the design package at \`$prel/\` ($sha)."
 echo "  - Target: the file that builds each screen carries its \`design: <id>\` marker."
 echo "  - Acceptance: \`$vcmd --verify screens$vargs\` exits 0 (each id marked in exactly one file). $exnote"
@@ -445,7 +534,7 @@ kinds="$kinds S$k=screens"; k=$((k + 1))
 
 if [[ ${#components[@]} -gt 0 ]]; then
   if [[ ${#components[@]} -le 12 ]]; then list="$(join "${components[@]}")"; else list="${#components[@]} names"; fi
-  echo "- **S$k — Design: named components exist**: every component in \`$prel/HANDOFF.md\` §Components ($list) exists as an identifier in source outside \`$proot/\`."
+  echo "- **S$k — Design: named components exist**: every component in \`$prel/HANDOFF.md\` §Components ($list) exists as an identifier in source outside $outside."
   echo "  - Current: the components are named only in the design package."
   echo "  - Target: each has a definition under the name the design uses."
   echo "  - Acceptance: \`$vcmd --verify components$vargs\` exits 0 (each name present as a whole word). $exnote"
@@ -457,7 +546,7 @@ if [[ ${#tokens[@]} -gt 0 ]]; then
   while IFS= read -r h; do [[ -n "$h" ]] && hex+=("$h"); done < <(
     for v in ${values[@]+"${values[@]}"}; do hexes "$v"; done | awk '!seen[tolower($0)]++'
   )
-  echo "- **S$k — Design: tokens live in one theme file**: all ${#tokens[@]} tokens in \`$prel/HANDOFF.md\` §Design tokens are defined in \`$thm\`, and no token colour value$([[ ${#hex[@]} -gt 0 && ${#hex[@]} -le 12 ]] && printf ' (%s)' "$(join "${hex[@]}")") is hard-coded outside it$([[ ${#allows[@]} -gt 0 ]] && printf ' or the files generated from it (%s)' "$(join "${allows[@]}")")."
+  echo "- **S$k — Design: tokens live in one theme file**: all ${#tokens[@]} tokens in \`$prel/HANDOFF.md\` §Design tokens are defined in \`$thm\`, and no token colour value$([[ ${#hex[@]} -gt 0 && ${#hex[@]} -le 12 ]] && printf ' (%s)' "$(join "${hex[@]}")") is hard-coded outside it$([[ ${#allows[@]} -gt 0 ]] && printf ' or the files allowed to carry them (%s)' "$(join "${allows[@]}")")$([[ ${#ignores[@]} -gt 0 ]] && printf ' (%s and the earlier design material are not source: %s)' "\`$proot/\`" "$ig_list")."
   echo "  - Current: the tokens are defined only in the design package."
   echo "  - Target: one theme file defines every token; everything else references it, and platform colour values (manifest, theme-color) are generated from it, never duplicated."
   echo "  - Acceptance: \`$vcmd --verify tokens$tokargs$vargs\` exits 0 (names compared case-insensitively with \`-\`/\`_\` removed, so \`panel-border\` matches \`panelBorder\`; every hex in a value cell is checked, light and dark alike)."
@@ -465,7 +554,7 @@ if [[ ${#tokens[@]} -gt 0 ]]; then
 fi
 
 if [[ $copy_count -gt 0 ]]; then
-  echo "- **S$k — Design: copy matches the design**: all $copy_count strings in \`$prel/HANDOFF.md\` §Copy appear verbatim in source outside \`$proot/\` — text that appears only in a code comment does not count."
+  echo "- **S$k — Design: copy matches the design**: all $copy_count strings in \`$prel/HANDOFF.md\` §Copy appear verbatim in source outside $outside — text that appears only in a code comment does not count."
   echo "  - Current: the copy exists only in the design package."
   echo "  - Target: the built UI uses the designed wording; each screen's phase checks its own strings with \`--screen <id>\`."
   echo "  - Acceptance: \`$vcmd --verify copy$vargs\` exits 0 (each string split on \`{name}\` placeholders; every fragment of 3+ characters present verbatim, a one-word fragment as a whole word — one-word strings are only presence-checked, so their rendering is left to the post-run screen comparison; \`(e.g. …)\` examples are sample values, not required). $exnote"
@@ -475,7 +564,7 @@ fi
 echo "- **S$k — Design: screens captured for review**: for each approved screen, \`$runroot/design-check/<id>.png\` exists, or the polish phase's evidence file records \`capture unavailable: <id> — <reason>\`; the capture code takes its output directory from \`RELAY_DESIGN_CHECK_DIR\`, so no run path is written into the product, and the evidence file records the one command that takes them as \`Capture command: <command>\`, which the audit re-runs so the screenshots show the finished build."
 echo "  - Current: no captures exist."
 echo "  - Target: the owner can compare each built screen against \`$prel/screens/<id>.png\` after the run; the comparison itself is never a gate."
-echo "  - Acceptance: for each id, \`test -f $runroot/design-check/<id>.png\` exits 0 or \`grep -F 'capture unavailable: <id>' $runroot/phases/phase-*.evidence.md\` prints a line; and \`git grep --untracked -lF '.relay/' -- . ':!$proot' ':!.relay' ':!**/.gitignore'\` returns no files."
+echo "  - Acceptance: for each id, \`test -f $runroot/design-check/<id>.png\` exits 0 or \`grep -F 'capture unavailable: <id>' $runroot/phases/phase-*.evidence.md\` prints a line; and \`git grep --untracked -lF '.relay/' -- . ':!$proot' ':!.relay'$capex ':!**/.gitignore'\` returns no files."
 kinds="$kinds S$k=capture"
 }
 

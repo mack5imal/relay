@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Apps whose design isn't a relay package.** Most existing apps keep their design somewhere
+  else — a design-tool export, a mockups folder, a style doc with a colour table — or only in
+  their code. Relay now finds likely design folders, names them in the design question, and
+  asks whether the new screens should match the current look. Matching gets the brief for adding
+  to an existing app, filled from that material or from the app's theme file. Before, these apps
+  got the new-app brief (three fresh looks), and the build's design checks read the old
+  material as app code: on one app a correct build failed the colour check 36 times, and old
+  mockups made missing wording pass. The checks now skip the confirmed design, and before the
+  plan is drafted relay lists every file that already holds the design's colours or wording, so
+  old docs and planning folders are skipped too. Nothing is moved or edited.
+
 - **Adding screens to an app that already has a design.** When the app already has a design
   package from an earlier run, the new screens' design goes in its own folder beside it,
   `design/<feature>/`, and the earlier package is left untouched. The brief asks the designer to
