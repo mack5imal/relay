@@ -689,16 +689,24 @@ coverage_counts() {
 # with the percentage computed here, not by the audit or the orchestrator (the lean run printed
 # the trust-prior share as "(0%)"), preceded by the ⚠ banner when trust-prior is over 30%.
 coverage_line() {
-  local c re tp share
+  local c re tp share cov ti eo depth=""
   c="$(coverage_counts)"
   if [ -z "$c" ]; then echo "Audit coverage: not reported — AUDIT_COMPLETE carried no counts."; return 0; fi
   re="${c% *}"; tp="${c#* }"
   # rounded down, so 100% only ever means nothing was taken on trust
   if [ $((re + tp)) -eq 0 ]; then share="nothing checked"; else share="$((re * 100 / (re + tp)))% re-verified"; fi
+  # What "re-verified" rested on (PHASE-BRIEF.md audit step 8): tunez read "100% re-verified"
+  # while 146 of its 323 checks only confirmed a file exists. An audit that reports the split
+  # gets it said in plain words; one that does not (older runs) prints exactly as before.
+  cov="$(field_after AUDIT_COMPLETE 'Audit coverage')"
+  ti="$(count_before "$cov" 'tests inspected')"; eo="$(count_before "$cov" 'existence only')"
+  if [ -n "$ti" ] && [ -n "$eo" ]; then
+    depth=" — $ti spec criteria's tests inspected; $eo checks only confirmed a file exists"
+  fi
   if [ $((tp * 100)) -gt $((30 * (re + tp))) ]; then
     echo "⚠ Audit coverage: $re re-verified, $tp trust-prior ($share). Eyeball UI/UX before merging."
   fi
-  echo "Audit coverage: $re re-verified, $tp trust-prior ($share)."
+  echo "Audit coverage: $re re-verified, $tp trust-prior ($share)$depth."
 }
 
 # completion_lines — the lines RELAY_RUN_COMPLETE copies, each on its own line after the summary:
@@ -706,11 +714,12 @@ coverage_line() {
 # coverage line (always; with its own ⚠ banner when trust-prior is over 30%), the findings counts
 # from FINDINGS.md, and the --lean checks line.
 completion_lines() {
-  local dcl=0 k=0 sk=0 pc=0 lean="" nl=$'\n' out="" r=0 t=0 f v
+  local dcl=0 k=0 sk=0 pc=0 an=0 lean="" nl=$'\n' out="" r=0 t=0 f v
   if [ -f "$findings" ]; then
     dcl="$(grep -cE '^- \[cleanup\]' "$findings" || true)"
     k="$(grep -cE '^- \[(correctness|security)\]' "$findings" || true)"
     pc="$(grep -cE '^- \[plan\]' "$findings" || true)"
+    an="$(grep -cE '^- \[audit\]' "$findings" || true)"
     sk="$(awk '/^## Skipped steps/{f=1; next} /^## /{f=0} f && /^- /{c++} END{print c+0}' "$findings")"
   fi
   if [ $((k + sk)) -gt 0 ]; then
@@ -735,8 +744,9 @@ completion_lines() {
       out="$out${nl}⚠ Design captures: may be out of date — not retaken${v:+: $v}" ;;
     *) out="$out${nl}Design captures: $v" ;;
   esac
-  if [ $((dcl + k + sk + pc)) -gt 0 ]; then
+  if [ $((dcl + k + sk + pc + an)) -gt 0 ]; then
     v=""; [ "$pc" -gt 0 ] && v=" · $pc plan changes"
+    [ "$an" -gt 0 ] && v="$v · $an audit notes"
     out="$out${nl}Findings: $dcl cleanup deferred · $k correctness/security open · $sk checks skipped$v — $findings"
   fi
   for f in "$phases"/phase-*.md; do
