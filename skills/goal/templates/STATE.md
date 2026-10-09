@@ -46,6 +46,6 @@ If a phase hits FAILURE_PROBE, record it here:
 
 ## Carryover
 
-Memory files written this run (the `MEMORY_SAVED: <name>` from each phase, one `- <name>` per line, appended by the orchestrator). `assemble-brief.sh` feeds these files into every later phase's brief so a cold subagent inherits what earlier phases learned.
+Memory files written this run (the `MEMORY_SAVED: <name>` from each phase, one `- <name> (phase N)` per line, appended by `record-phase.sh`). `assemble-brief.sh` inlines a memory into the briefs of the phases that depend on the one that wrote it, and lists every other memory in a one-line index, so a cold subagent inherits what earlier phases learned without every brief carrying all of it.
 
 - (none yet)

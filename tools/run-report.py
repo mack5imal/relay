@@ -174,7 +174,9 @@ def main() -> int:
                 if l.startswith("- ") and "{{" not in l
                 and l.strip().lower() not in ("- (none)", "- (none yet)", "- none", "- ...")]
     events = [l for l in section(state, "Notable events") if l.startswith("- ") and "{{" not in l]
+    # "- <name> (phase N)" since the carryover change; a memory two phases saved is listed twice
     carry = [l for l in section(state, "Carryover") if l.startswith("- ") and "none yet" not in l]
+    carry_names = {re.sub(r" \(phase \d+\)$", "", l[2:].strip()) for l in carry}
     spec = run_root / "SPEC.md"
 
     check = None
@@ -250,7 +252,7 @@ def main() -> int:
         w("\n")
 
     if carry:
-        w(f"## Memory written ({len(carry)})\n\n")
+        w(f"## Memory written ({len(carry_names)})\n\n")
         for c in carry:
             w(f"{c}\n")
         w("\n")

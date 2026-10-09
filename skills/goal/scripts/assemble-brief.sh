@@ -33,6 +33,9 @@
 #   `<!-- /mode -->` fences keep their lines only when the current mode is listed; every
 #   other {{NAME}} is substituted inline.
 #
+#   Carryover: phase / fix briefs inline the memories their `Depends on phases:` wrote (within
+#   RELAY_CARRYOVER_KB, default 12) and index the rest; check briefs get the index only.
+#
 #   Prints one summary line on success. Exits 0 on success, 1 when a required input is
 #   missing, 2 on a usage error. Missing carryover files and a missing graph are never
 #   fatal — they degrade to a note in the brief.
@@ -208,25 +211,116 @@ if [ "$mode" = "phase" ] || [ "$mode" = "fix" ] || [ "$mode" = "review" ] || [ "
 fi
 
 # --- {{CARRYOVER}} ------------------------------------------------------------------------
-carry_count=0
-: > "$tmp/carry"
-names="$(awk '/^## Carryover/{f=1; next} /^## /{f=0} f && /^- /{sub(/^- /, ""); print}' "$state" \
-         | sed -E 's/[[:space:]]+$//' | grep -v -i '^(none yet)$' | grep -v '^$' || true)"
-if [ -n "$names" ]; then
-  while IFS= read -r name; do
-    [ -n "$name" ] || continue
-    found=""
-    for cand in "$memdir/$name.md" "$memdir/$name"; do
-      [ -n "$memdir" ] && [ -f "$cand" ] && { found="$cand"; break; }
-    done
-    if [ -n "$found" ]; then
-      carry_count=$((carry_count + 1))
-      { printf '### %s\n\n' "$name"; cat "$found"; printf '\n\n'; } >> "$tmp/carry"
-    else
-      printf '### %s\n\n(not found under %s)\n\n' "$name" "${memdir:-<no Memory dir>}" >> "$tmp/carry"
+# Every memory a window saved is listed in STATE.md's `## Carryover` as "- <name> (phase N)".
+# Inlining all of them made briefs grow without bound (tunez: 30 memories / 51 KB, phase briefs
+# 28 → 85 KB, check briefs ~100 KB, the first Read cut short from phase 13 on). So:
+#   phase / fix windows — full text of the memories written by the phases in the spec's
+#     `Depends on phases:` (and phase N itself), nearest phase first, within RELAY_CARRYOVER_KB
+#     (default 12); a line with no "(phase N)" counts as eligible, as before;
+#   every other memory, and every memory for the check windows (review, review-fix, cleanup,
+#     security, security-fix, audit, audit-fix) — one index line: name, phase, description (the
+#     memory dir is named once above the list).
+# Nothing is hidden: the window opens any file whose line touches its work.
+carry_count=0; carry_idx=0
+: > "$tmp/carry"; : > "$tmp/carry.full"; : > "$tmp/carry.idx"
+budget=$(( ${RELAY_CARRYOVER_KB:-12} * 1024 ))
+# "<name>\t<phase or empty>", one per memory, latest phase kept, in list order
+awk '/^## Carryover/{f=1; next} /^## /{f=0}
+     f && /^- / {
+       l = $0; sub(/^- +/, "", l); sub(/[[:space:]]+$/, "", l)
+       if (l == "" || tolower(l) == "(none yet)" || l == "..." || index(l, "{{")) next
+       ph = ""
+       if (match(l, / \(phase [0-9]+\)$/)) { ph = substr(l, RSTART + 8, RLENGTH - 9); l = substr(l, 1, RSTART - 1) }
+       if (!(l in at)) { order[++n] = l; at[l] = ph }
+       else if (ph != "" && (at[l] == "" || ph + 0 > at[l] + 0)) at[l] = ph
+     }
+     END { for (i = 1; i <= n; i++) print order[i] "\t" at[order[i]] }' "$state" > "$tmp/carry.list"
+
+# The phases whose memories this window gets in full ("" for the check windows).
+eligible=" "
+if [ "$mode" = "phase" ] || [ "$mode" = "fix" ]; then
+  deps="$(grep -m1 -E '^Depends on phases:' "$phases/phase-$phase.md" 2>/dev/null | sed -E 's/^Depends on phases:[[:space:]]*//')"
+  for part in $(printf '%s' "$deps" | tr ',;' '  '); do
+    if [[ "$part" =~ ^([0-9]+)[-–]([0-9]+)$ ]]; then
+      i="${BASH_REMATCH[1]}"; while [ "$i" -le "${BASH_REMATCH[2]}" ]; do eligible="$eligible$i "; i=$((i + 1)); done
+    elif [[ "$part" =~ ^[0-9]+$ ]]; then eligible="$eligible$part "
     fi
-  done <<< "$names"
+  done
+  eligible="$eligible$phase "
 fi
+
+# mem_file <name> — the memory's path, or "" when it is not on disk
+mem_file() {
+  local cand
+  [ -n "$memdir" ] || return 0
+  for cand in "$memdir/$1.md" "$memdir/$1"; do [ -f "$cand" ] && { printf '%s' "$cand"; return 0; }; done
+}
+# mem_desc <file> — frontmatter description (quotes stripped), else the first body line; at most
+# 160 characters, cut on a character boundary
+mem_desc() {
+  LC_ALL=C awk '
+    BEGIN { for (i = 128; i < 256; i++) ord[sprintf("%c", i)] = i }
+    function cut(s, max,   o, k, i, c, b) {
+      o = ""; k = 0
+      for (i = 1; i <= length(s); i++) {
+        c = substr(s, i, 1); b = (c in ord) ? ord[c] : 0
+        if (b < 128 || b >= 192) { if (++k > max) return o "…" }
+        o = o c
+      }
+      return o
+    }
+    NR == 1 && $0 == "---" { fm = 1; next }
+    fm && $0 == "---" { fm = 0; next }
+    fm && /^description:/ { d = $0; sub(/^description:[[:space:]]*/, "", d); sub(/[[:space:]]+$/, "", d)
+                            if (d ~ /^".*"$/ || d ~ /^\x27.*\x27$/) d = substr(d, 2, length(d) - 2)
+                            gsub(/\\"/, "\"", d); desc = d; next }
+    !fm && body == "" && $0 !~ /^[[:space:]]*$/ { body = $0; sub(/^#+[[:space:]]*/, "", body) }
+    END { print cut(desc != "" ? desc : body, 160) }' "$1"
+}
+
+# Full text: eligible memories, nearest phase first (no recorded phase last), within the budget.
+if [ "$eligible" != " " ]; then
+  awk -F'\t' '{ print ($2 == "" ? -1 : $2) "\t" NR "\t" $0 }' "$tmp/carry.list" \
+    | sort -t "$(printf '\t')" -k1,1nr -k2,2n | cut -f3- > "$tmp/carry.order"
+else
+  : > "$tmp/carry.order"
+fi
+used=0; : > "$tmp/carry.chosen"
+while IFS="$(printf '\t')" read -r mname ph; do
+  [ -n "$mname" ] || continue
+  if [ -n "$ph" ]; then case "$eligible" in *" $ph "*) ;; *) continue ;; esac; fi
+  mf="$(mem_file "$mname")"
+  mlabel="$mname${ph:+ (phase $ph)}"
+  if [ -z "$mf" ]; then
+    printf '### %s\n\n(not found under %s)\n\n' "$mlabel" "${memdir:-<no Memory dir>}" >> "$tmp/carry.full"
+    printf '%s\n' "$mname" >> "$tmp/carry.chosen"; continue
+  fi
+  sz="$(wc -c < "$mf" | tr -d ' ')"
+  [ $((used + sz)) -le "$budget" ] || continue
+  used=$((used + sz)); carry_count=$((carry_count + 1))
+  { printf '### %s\n\n' "$mlabel"; cat "$mf"; printf '\n\n'; } >> "$tmp/carry.full"
+  printf '%s\n' "$mname" >> "$tmp/carry.chosen"
+done < "$tmp/carry.order"
+
+# The index: everything not given in full, in the order it was saved.
+while IFS="$(printf '\t')" read -r mname ph; do
+  [ -n "$mname" ] || continue
+  grep -qxF -- "$mname" "$tmp/carry.chosen" && continue
+  mf="$(mem_file "$mname")"
+  mlabel="$mname${ph:+ (phase $ph)}"
+  if [ -n "$mf" ]; then printf -- '- %s — %s\n' "$mlabel" "$(mem_desc "$mf")" >> "$tmp/carry.idx"
+  else printf -- '- %s — (no file for it)\n' "$mlabel" >> "$tmp/carry.idx"; fi
+  carry_idx=$((carry_idx + 1))
+done < "$tmp/carry.list"
+
+cat "$tmp/carry.full" >> "$tmp/carry"
+if [ -s "$tmp/carry.idx" ]; then
+  if [ -s "$tmp/carry.full" ]; then hdr="### Other memories saved this run"; else hdr="### Memories saved this run"; fi
+  { printf '%s\n\n' "$hdr"
+    printf 'One line each; the file is `%s/<name>.md` — open (Read) it when its line touches your work.\n\n' "${memdir:-<no Memory dir>}"
+    cat "$tmp/carry.idx"; printf '\n'; } >> "$tmp/carry"
+fi
+carry_full_kb="$(awk -v b="$used" 'BEGIN { printf "%.1f", b / 1024 }')"
 if [ -f "$runroot/applied-memories.md" ]; then
   { printf '### Applied at planning (applied-memories.md)\n\n'; cat "$runroot/applied-memories.md"; printf '\n'; } >> "$tmp/carry"
 fi
@@ -417,6 +511,16 @@ while IFS= read -r line || [ -n "$line" ]; do
   printf '%s\n' "$line" >> "$out"
 done < "$template"
 
+# {{BRIEF_LINES}} — the brief's own length, so its reader knows when a Read stopped early (from
+# phase 13 of a 19-phase run, the first Read of every brief came back cut short). Filled after
+# assembly; the placeholder sits on an existing line, so the count it states stays true.
+brief_lines="$(grep -c '' "$out")"
+if grep -qF '{{BRIEF_LINES}}' "$out"; then
+  awk -v n="$brief_lines" -v t='{{BRIEF_LINES}}' \
+    '{ while ((i = index($0, t)) > 0) $0 = substr($0, 1, i - 1) n substr($0, i + length(t)) } 1' \
+    "$out" > "$out.tmp" && mv "$out.tmp" "$out"
+fi
+
 # What is in flight: recover.sh reads this when the session stops before the window reports,
 # to tell a dead dispatch (re-dispatch it) from a live one (keep waiting) by the Claude process
 # that dispatched it. record-phase.sh removes it when it records this target. A separate file,
@@ -455,5 +559,5 @@ case "$mode" in
   cleanup|security) spec_note=", commands: $cmd_count, spec: $spec_crit_count criteria" ;;
   security-fix)   spec_note=", commands: $cmd_count" ;;
 esac
-echo "brief: $out ($lines lines, $(kb "$out") KB, slice: $slice_note, carryover: $carry_count memories / $(kb "$tmp/carry") KB$spec_note)"
+echo "brief: $out ($lines lines, $(kb "$out") KB, slice: $slice_note, carryover: $carry_count in full ($carry_full_kb KB), $carry_idx indexed / $(kb "$tmp/carry") KB$spec_note)"
 exit 0

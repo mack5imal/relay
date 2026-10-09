@@ -42,6 +42,7 @@ as it is; `CLAUDE.md` holds the working rules.
 | 2026-10-07 | **CI shape.** GitHub Actions on every push to any branch plus a manual trigger (no pull-request trigger: work merges locally, so it would only double-run). Matrix `ubuntu-latest` + `macos-latest`, `fail-fast: false`. **macOS runs the suites under the system bash 3.2 on purpose** (a PATH shim to `/bin/bash`): most Mac users have it, and Linux covers bash 5, so the pair spans both. `zsh` and `uv` are installed, and **pass counts are enforced**: `tests/run-all.sh` fails a suite whose count differs from `CLAUDE.md`'s `# expects:` line, because a missing `zsh`/`uv` skips checks by lowering the count rather than failing. `claude plugin validate` runs unpinned and without `--strict` (its only warning is `CLAUDE.md` at the plugin root, expected here). `.gitattributes` widened to `* text=auto eol=lf`. |
 | 2026-10-07 | **A check that contradicts the plan: who decided decides.** A test run's security fix changed a `(planner)` out-of-scope line ("a `--force` replacement gets the umask mode") and nothing flagged it — no check window was ever shown `SPEC.md`'s scope, constraints or assumptions. Now **a fix that changes relay's own call** — a `(planner)`-tagged out-of-scope item or an `## Assumptions` item ("decisions taken without confirmation") — **is made and flagged**; **a fix that goes against the owner's call** — everything else in `SPEC.md` — **is deferred** to `FINDINGS.md` (`contradicts the plan: "<line>"`). Either way `RELAY_RUN_COMPLETE` carries a ⚠ line. Why the split: the planner's guesses were only "not corrected" at approval (weak consent), and a real flaw should not ship to protect a guess; the owner's explicit answers are never overridden by an unattended agent. The audit is unchanged. |
 | 2026-10-08 | **Pre-flight on a new project: "not runnable yet" is the script's call, never the planner's.** On a greenfield or design-stage run most mandatory commands cannot run before phase 1 (no `package.json`, a script a later phase adds, `check-design.sh --verify` on screens not yet built), so pre-flight was always red and "skip pre-flight" became a planned step — the check meant nothing. `preflight.sh` now lists such a command as *not runnable yet* (with the phase that first uses it) instead of running it, from a fixed list: a package manager with no `package.json` or without the named script, a build tool with no manifest, a script path that does not exist, `check-design.sh --verify`. Rejected: letting the planner mark commands "later" — that is the same rubber stamp as the routine skip. A command whose prerequisites exist still runs, and a failure is still red. |
+| 2026-10-09 | **Carryover by dependency, the rest as an index.** Every memory in full in every window made briefs grow with the run (tunez: 30 memories / 51 KB; phase briefs 28 → 85 KB, check briefs ~100 KB; from phase 13 the first Read of every brief was cut short). Now `STATE.md` records the phase that wrote each memory (`- <name> (phase N)`), and a phase or fix window gets **in full** the memories written by the phases in its `Depends on phases:` (nearest first, 12 KB budget); **every other memory is one index line** (name, phase, description; the folder named once), which the window opens when it touches its work — the same model as Claude Code's own memory index, so nothing is hidden. **Check windows get the index only** — they judge the code against the spec, not the build's trade knowledge. Rejected: a size warning to the orchestrator (it cannot act on it) — instead **every brief states its own line count**, so a Read that stops early is resumed. Map seeds were not used for selection: a memory names modules in prose, not graph symbols. Rebuilt from tunez's memories: phase 19 83 → 50 KB, audit 92 → 45 KB. |
 | 2026-10-08 | **Relay offers git and a remote; it never publishes.** A new user in an empty folder used to get a run with no commits, no run branch and existence-only audit checks, without being told. Stage 1 now asks: **set up git here** (recommended), or continue without it (push off, weaker checks). When the folder already has files, the same choice saves them as the starting point, so pre-flight isn't stopped by them a moment later; secrets and generated folders are left out via `.gitignore`. When push is on and there is no remote, it asks again: create a **private** GitHub repo through `gh`, connect an existing one, add one yourself, or push off. Rules: relay never creates a public repository, connecting a remote never pushes (the run's only push is the run branch after the audit), and with several remotes and no `origin` the owner names one (`Push: on — to <remote>`). |
 | 2026-10-08 | **The public repository.** relay's private development (0.8.0–0.11.0) stays private: the public repository is Supergoal's history up to the fork commit, then relay, keeping the original authors' commits intact. `tools/leak-check.sh`, run by CI on every push, keeps private paths, ids and addresses out of tracked files and commit metadata. |
 
@@ -173,7 +174,8 @@ institutional knowledge of a 14-phase, 700 KB build in 6.5k tokens, generated au
 
 **relay re-points this output into each brief**, not a new memory system: `record-phase.sh` lists
 each memory a window writes under `STATE.md`'s `## Carryover`, and `assemble-brief.sh` inlines them
-into every later brief (how much to inline is §9 item 7).
+into later briefs: in full for the phases that depend on the writer, as a one-line index
+otherwise (decisions log, 2026-10-09).
 
 ### Second mechanism: planner-authored exemplars
 
@@ -196,7 +198,7 @@ directly, and requires the warm planner to do nothing it is not already position
 | Subagent contract | `PHASE-BRIEF.md`, the dispatch's mode only | ~3 KB |
 | Success criteria + prohibitions | `SPEC.md` | ~1–2 KB |
 | Block formats | the mode's sections of `MARKERS.md` | ~1 KB |
-| Carryover | accreted memory-writeback entries | ~4 KB at phase 14 |
+| Carryover | memories from the phases it depends on, in full (≤ 12 KB), plus a one-line index of the rest | ≤ ~17 KB (tunez, 30 memories) |
 | Repo map slice | graphify query (see §6) | ~4–5 KB |
 | Failure log, baseline, commands | `STATE.md` excerpt | ~1 KB |
 
@@ -411,10 +413,10 @@ creep — precisely what the phase protocol forbids).
    evidence files made up the rest. Brief §6's context-hygiene rules and Stage 5's section-level
    citations help but are not followed reliably (a 19-phase run still peaked at 276–330k in its
    heaviest windows). The next lever is structural, not more prose.
-7. **Carryover grows the brief linearly.** Every window gets every memory written so far: on a
-   19-phase run, 30 memories (52 KB) grew phase briefs from 28 KB to 85 KB, and check windows got
-   them too. Options: choose carryover by the phase's dependencies and map seeds, give check
-   windows names and descriptions only, warn over a size.
+7. **Carryover grew the brief linearly — resolved 2026-10-09.** Every window got every memory
+   written so far: on a 19-phase run, 30 memories (52 KB) grew phase briefs from 28 KB to 85 KB,
+   and check windows got them too. Now carryover is chosen by `Depends on phases:` within a
+   budget, the rest is a one-line index, and check windows get the index only (decisions log).
 8. **Orchestrator bookkeeping drift.** The first run skipped one echo while hand-editing
    `STATE.md`. Mitigated by echo-first ordering and `record-phase.sh`; `tools/check-run.py` is the
    regression check on a real run.
