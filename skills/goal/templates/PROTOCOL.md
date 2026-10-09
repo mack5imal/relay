@@ -23,7 +23,7 @@ Repeat until `RELAY_RUN_COMPLETE` is printed:
    ```bash
    bash {{RUN_ROOT}}/assemble-brief.sh {{RUN_ROOT}} N
    ```
-   It writes `{{RUN_ROOT}}/phases/phase-N.brief.md`: the spec, the executor contract, carryover memory from earlier phases, a precomputed code-map slice, the run-state excerpt, and the block formats. If it exits non-zero, its message names the missing file — fix that (usually a spec the planner did not write) and re-run; do not hand-write a brief.
+   It writes `{{RUN_ROOT}}/phases/phase-N.brief.md`: the spec, the executor contract, carryover memory (in full from the phases this one depends on, the rest as a one-line index), a precomputed code-map slice, the run-state excerpt, and the block formats. If it exits non-zero, its message names the missing file — fix that (usually a spec the planner did not write) and re-run; do not hand-write a brief.
 3. **Dispatch.** Call the `Agent` tool with `subagent_type: general-purpose`, `description: "Relay phase N"`, and this prompt, with the real path substituted:
 
    > Read `{{RUN_ROOT}}/phases/phase-N.brief.md` and follow it exactly. Open it with the Read tool, not `cat` — it is longer than a Bash result can show. It is your complete manual for this window. Your final message must contain only the marker blocks it specifies, in order, and nothing else.
@@ -169,7 +169,7 @@ You never write these (except a report file in the `report not found` fallback);
 - **Report files** — `{{RUN_ROOT}}/phases/phase-N.report.md`, `phase-N.fix.report.md`, `phase-N.review.report.md`, `phase-N.review-fix.report.md`, `cleanup.report.md`, `security.report.md`, `security-fix.report.md`, `audit-R.report.md`, `audit-fix-R.report.md`: the exact text of each hand-back, which `record-phase.sh` reads.
 - **Evidence files** — `{{RUN_ROOT}}/phases/phase-N.evidence.md` per phase (attempts, fix attempts, per-criterion results, cleanliness matches, changed files) and `{{RUN_ROOT}}/phases/audit-R.evidence.md` per audit round. Format: `PHASE-BRIEF.md` §6.
 - **Command logs** — `{{RUN_ROOT}}/logs/phase-N/` and `{{RUN_ROOT}}/logs/audit-R/`, written by `run-logged.sh`.
-- **Memory files** — under the `Memory dir:` named in `STATE.md`, per the writeback rules in `PHASE-BRIEF.md` §6. `record-phase.sh` appends each `MEMORY_SAVED` name to `## Carryover`.
+- **Memory files** — under the `Memory dir:` named in `STATE.md`, per the writeback rules in `PHASE-BRIEF.md` §6. `record-phase.sh` appends each `MEMORY_SAVED` name to `## Carryover` with the phase that wrote it (`- <name> (phase N)`).
 - **Fix specs** — `phase-N.fix.md` (from a phase window on its second failure), `phase-N.review-fix.md` and `security-fix.md` (from a review or security window with findings), and `audit-fix-R.md` (from an audit window with gaps).
 - **`FINDINGS.md`** — what the review, tidy-up and security windows deferred or could not fix (`record-phase.sh` adds a line for a skipped check). You never read it during the run; `RELAY_RUN_COMPLETE` points the owner at it.
 - **Commits** — each phase, fix, review-fix, tidy-up, security-fix and audit-fix window commits its own work with `relay-git.sh commit` once it passes; `record-phase.sh` finds the sha in git and records it. **Never run `git commit`, `git add`, `git stash`, or a branch change yourself**, not even to tidy up after a subagent: uncommitted work at the end is the audit's gap to report and an audit-fix window's to commit. A handed-off run's partial work stays uncommitted for the user.

@@ -1,6 +1,6 @@
 # Relay brief — {{MODE}}: {{TITLE}}
 
-You are one worker in a Relay run. This brief is your complete manual — `assemble-brief.sh` built it for you, and everything you need is either in it or in a file it names. Read it once, top to bottom, with the Read tool, before touching anything.
+You are one worker in a Relay run. This brief is your complete manual — `assemble-brief.sh` built it for you, and everything you need is either in it or in a file it names. Read it once, top to bottom, with the Read tool, before touching anything. It is {{BRIEF_LINES}} lines long: if a Read stops before line {{BRIEF_LINES}}, or refuses the file as too large, read the rest with `offset` / `limit` — the report contract is at the end.
 
 | | |
 |---|---|
@@ -164,7 +164,13 @@ This is the **fix for audit round {{ROUND}}**. The audit found the gaps listed i
 
 ## 3. Carryover from earlier in this run
 
-Memory files earlier phases wrote (distilled invariants, traps hit, confirmed preferences) plus the memories the planner applied. Read them — they are what you cannot recover from the code.
+Memory files earlier windows wrote (distilled invariants, traps hit, confirmed preferences) plus the memories the planner applied — what you cannot recover from the code.
+<!-- mode: phase fix -->
+The memories written by the phases this one depends on are below in full. Every other memory saved this run is listed by name, phase and one line, with its path: **open (Read) any whose line touches your work** — a library quirk or a module's API from a phase you do not depend on directly is often exactly the trap you are about to hit.
+<!-- /mode -->
+<!-- mode: review review-fix cleanup security security-fix audit audit-fix -->
+Every memory saved this run is listed by name, phase and one line, with its path — open (Read) one when its line bears on what you are checking.
+<!-- /mode -->
 
 {{CARRYOVER}}
 

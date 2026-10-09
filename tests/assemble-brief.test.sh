@@ -32,6 +32,7 @@ no() { fail=$((fail + 1)); printf '  \033[31m✗\033[0m %s\n      %s\n' "$1" "$2
 assert_rc()       { if [ "$2" = "$RC" ]; then ok "$1"; else no "$1" "expected exit $2 got $RC (out: $OUT)"; fi; }
 assert_contains() { case "$3" in *"$2"*) ok "$1";; *) no "$1" "missing substring [$2]";; esac; }
 assert_missing()  { case "$3" in *"$2"*) no "$1" "unexpectedly contains [$2]";; *) ok "$1";; esac; }
+assert_eq()       { if [ "$2" = "$3" ]; then ok "$1"; else no "$1" "expected [$2] got [$3]"; fi; }
 assert_file()     { if [ -f "$2" ]; then ok "$1"; else no "$1" "no file at $2"; fi; }
 
 run() { OUT="$("$@" 2>&1)"; RC=$?; }
@@ -196,9 +197,9 @@ run bash "$AB" "$w/run" 1
 assert_rc "phase brief exits 0" 0
 assert_contains "summary line" "brief: $w/run/phases/phase-1.brief.md (" "$OUT"
 assert_contains "summary counts seeds" "slice: 2 seeds" "$OUT"
-assert_contains "summary counts carryover" "carryover: 1 memories" "$OUT"
+assert_contains "summary counts carryover" "carryover: 1 in full (" "$OUT"
 assert_contains "summary reports brief size in KB" " KB, slice: 2 seeds" "$OUT"
-case "$OUT" in *"carryover: 1 memories / "[0-9]*" KB)"*) ok "summary reports carryover size in KB";; *) no "summary reports carryover size in KB" "[$OUT]";; esac
+case "$OUT" in *"carryover: 1 in full ("*" KB), 0 indexed / "[0-9]*" KB)"*) ok "summary reports carryover size in KB";; *) no "summary reports carryover size in KB" "[$OUT]";; esac
 assert_file "brief written" "$w/run/phases/phase-1.brief.md"
 B="$(cat "$w/run/phases/phase-1.brief.md")"
 assert_contains "mode in title" "# Relay brief — phase: Build scheduler core" "$B"
@@ -332,12 +333,116 @@ PY
 rm "$w/run/applied-memories.md"
 run bash "$AB" "$w/run/" 1
 assert_rc "still exits 0" 0
-assert_contains "summary zero carryover" "carryover: 0 memories" "$OUT"
+assert_contains "summary zero carryover" "carryover: 0 in full (0.0 KB), 0 indexed" "$OUT"
 assert_contains "trailing slash normalized in summary" "brief: $w/run/phases/phase-1.brief.md" "$OUT"
 B="$(cat "$w/run/phases/phase-1.brief.md")"
 assert_contains "no-carryover note" "(no carryover yet" "$B"
 assert_contains "memory dir placeholder note" "<not set — see STATE.md Memory dir>" "$B"
 assert_missing "no placeholder survives" "{{" "$B"
+rm -rf "$w"
+
+# ---------------------------------------------------------------------------
+echo "[8b] Carryover is chosen by dependency; the rest is an index; check windows get the index"
+w="$(mktemp -d)"; make_run "$w/run"; r="$w/run"; m="$r/mem"
+pad() { head -c "$1" /dev/zero | tr '\0' 'p'; }
+mem() { # mem <name> <total bytes> <frontmatter description or "-"> <body marker>
+  { if [ "$3" != "-" ]; then printf -- '---\nname: %s\ndescription: %s\nmetadata:\n  type: reference\n---\n' "$1" "$3"; fi
+    printf '# Heading %s\n%s\n' "$1" "$4"; } > "$m/$1.md"
+  local have; have="$(wc -c < "$m/$1.md" | tr -d ' ')"
+  [ "$2" -gt "$have" ] && pad $(( $2 - have )) >> "$m/$1.md"; return 0
+}
+mem m-one 300 '"Quoted desc with é accents"' BODY-ONE
+mem m-two 200 'Plain two' BODY-TWO
+mem m-three 600 - BODY-THREE
+mem m-dup 500 'Dup desc' BODY-DUP
+mem m-four 100 'Four desc' BODY-FOUR
+mem m-legacy 80 'Legacy desc' BODY-LEGACY
+mem long-desc 600 "$(python3 -c 'print("é" * 200)')" BODY-LONG
+python3 - "$r/STATE.md" <<'PY'
+import sys, pathlib
+p = pathlib.Path(sys.argv[1]); t = p.read_text()
+t = t.split("## Carryover")[0] + """## Carryover
+
+- m-one (phase 1)
+- m-dup (phase 1)
+- long-desc (phase 1)
+- m-two (phase 2)
+- m-three (phase 3)
+- m-dup (phase 3)
+- m-legacy
+- m-four (phase 4)
+"""
+p.write_text(t)
+PY
+cat > "$r/phases/phase-4.md" <<'SPEC'
+RELAY_PHASE_START
+Phase: 4 of 4 — Later work
+Task: Build on 2 and 3
+Depends on phases: 2-3
+Map seeds: none
+
+## Work
+
+- SPEC-FOUR-WORK-BULLET
+SPEC
+run bash "$AB" "$r" 4
+assert_rc "phase 4 brief exits 0" 0
+assert_contains "summary: 5 in full, 2 indexed" "carryover: 5 in full (" "$OUT"
+assert_contains "… and the index count" "), 2 indexed / " "$OUT"
+B="$(cat "$r/phases/phase-4.brief.md")"
+for x in BODY-FOUR BODY-THREE BODY-DUP BODY-TWO BODY-LEGACY; do assert_contains "full text: $x" "$x" "$B"; done
+assert_missing "not a dependency → not inlined" "BODY-ONE" "$B"
+assert_missing "… nor its other memory" "BODY-LONG" "$B"
+assert_contains "a range in Depends on is read (2-3)" "### m-two (phase 2)" "$B"
+assert_contains "a memory saved twice is used once, at its latest phase" "### m-dup (phase 3)" "$B"
+assert_eq "… once" "1" "$(printf '%s\n' "$B" | grep -c '^### m-dup')"
+assert_contains "a line with no phase stays eligible" "### m-legacy" "$B"
+order="$(printf '%s\n' "$B" | grep -oE '^### (m-four|m-three|m-dup|m-two|m-legacy)' | tr '\n' ' ')"
+assert_eq "nearest phase first (list order within a phase), no-phase last" "### m-four ### m-dup ### m-three ### m-two ### m-legacy " "$order"
+assert_contains "the index has its own heading" "### Other memories saved this run" "$B"
+assert_contains "index line: name, phase, quoted description unquoted" "- m-one (phase 1) — Quoted desc with é accents
+" "$B"
+assert_contains "the memory dir is named once, above the list" "the file is \`$m/<name>.md\`" "$B"
+long_line="$(printf '%s\n' "$B" | grep '^- long-desc (phase 1) — ')"
+assert_eq "a long description is cut at 160 characters, on a character boundary" "160" \
+  "$(printf '%s' "$long_line" | python3 -c 'import sys; l = sys.stdin.read(); d = l.split(" — ", 1)[1].strip(); print(len(d.rstrip("…")) if d.endswith("…") else -1)')"
+assert_contains "the brief states its length" "It is $(grep -c '' "$r/phases/phase-4.brief.md") lines long: if a Read stops before line $(grep -c '' "$r/phases/phase-4.brief.md")" "$B"
+assert_missing "no placeholder survives" "{{" "$B"
+assert_contains "the reader is told to open index entries" "open (Read) any whose line touches your work" "$B"
+
+RELAY_CARRYOVER_KB=1 run bash "$AB" "$r" 4
+B="$(cat "$r/phases/phase-4.brief.md")"
+assert_contains "budget: 4 fit in 1 KB" "carryover: 4 in full (" "$OUT"
+assert_missing "… the one that does not fit is not inlined" "BODY-THREE" "$B"
+assert_contains "… it is indexed instead" "- m-three (phase 3) — Heading m-three" "$B"
+assert_contains "… and smaller later ones still fit" "BODY-LEGACY" "$B"
+
+printf '# Fix spec — phase 4\n\n## Work\n\n- FIX-FOUR\n' > "$r/phases/phase-4.fix.md"
+run bash "$AB" "$r" 4 --fix
+B="$(cat "$r/phases/phase-4.fix.brief.md")"
+assert_contains "a fix window gets its own phase's memory" "### m-four (phase 4)" "$B"
+assert_contains "… and its dependencies'" "BODY-THREE" "$B"
+
+run bash "$AB" "$r" 1
+B="$(cat "$r/phases/phase-1.brief.md")"
+assert_contains "Depends on: none → only its own and no-phase memories in full" "BODY-ONE" "$B"
+assert_missing "… nothing from later phases" "BODY-THREE" "$B"
+
+run bash "$AB" "$r" --cleanup
+assert_rc "cleanup brief exits 0" 0
+assert_contains "check window: nothing in full" "carryover: 0 in full (0.0 KB), 7 indexed" "$OUT"
+B="$(cat "$r/phases/cleanup.brief.md")"
+assert_missing "… no memory body" "BODY-" "$B"
+assert_contains "… the index heading" "### Memories saved this run" "$B"
+assert_contains "… a frontmatter-less memory uses its first line" "- m-three (phase 3) — Heading m-three
+" "$B"
+assert_contains "… a no-phase memory has no phase label" "- m-legacy — Legacy desc" "$B"
+assert_contains "… the check-window wording" "open (Read) one when its line bears on what you are checking" "$B"
+assert_contains "… applied-memories still inlined" "swift-testing-quirk" "$B"
+run bash "$AB" "$r" --audit 1
+assert_contains "audit: index only" "carryover: 0 in full (0.0 KB), 7 indexed" "$OUT"
+run bash "$AB" "$r" 4 --review
+assert_contains "review: index only" "carryover: 0 in full (0.0 KB), 7 indexed" "$OUT"
 rm -rf "$w"
 
 # ---------------------------------------------------------------------------

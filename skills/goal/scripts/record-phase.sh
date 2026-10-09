@@ -544,7 +544,7 @@ if [ "$mode" = "phase" ] || [ "$mode" = "fix" ]; then
     fi
 
     if [ -n "$memories" ]; then
-      while IFS= read -r m; do section_add "Carryover" "- $m"; done <<< "$memories"
+      while IFS= read -r m; do section_add "Carryover" "- $m (phase $phase)"; done <<< "$memories"
     fi
 
     detail="$crit_pass/$crit_total criteria pass"

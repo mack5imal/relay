@@ -57,6 +57,10 @@ for suite in "$REPO_ROOT"/tests/*.test.sh; do
     problem="no '# expects:' line for it in $(basename "$EXPECT_FILE")"
   elif [ "$got" != "$expected" ]; then
     problem="$got passed, expected $expected (a skipped check, or a stale count in $(basename "$EXPECT_FILE"))"
+  elif grep -q 'command not found' "$log"; then
+    # An undefined assert helper prints this and counts nothing, so the expected count would be
+    # set to the lower number and the lost check never noticed (it happened twice in one batch).
+    problem="its output says 'command not found' — an undefined helper or missing tool silently drops assertions"
   fi
 
   if [ -z "$problem" ]; then

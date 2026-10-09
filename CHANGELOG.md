@@ -21,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Subagent briefs no longer grow with every memory the run saves.** Each window used to get
+  every memory in full. On the tunez run that was 30 memories (51 KB), so phase briefs grew
+  from 28 KB to 85 KB, check briefs reached about 100 KB, and from phase 13 on the first Read
+  of every brief came back cut short. Now a phase gets the memories of the phases it depends on
+  in full (up to 12 KB, nearest first), and every other memory as a one-line index it can open.
+  Review, tidy-up, security and audit windows get the index only. Rebuilt from tunez's own
+  memories, phase 19's brief is 50 KB instead of 83 KB and the audit's 45 KB instead of 92 KB.
+  `STATE.md`'s carryover lines now record the phase that wrote each memory, and every brief
+  states its length so a Read that stops early is resumed.
 - Pre-flight is no longer red on every new project. A command whose prerequisites only the
   build creates — no `package.json` yet or no such script in it, no `Cargo.toml` / `go.mod` /
   `Makefile`, a script file that doesn't exist yet, `check-design.sh --verify` — is listed as
