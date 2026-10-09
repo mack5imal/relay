@@ -23,6 +23,11 @@
 #   K is 3 when the command exits 0 and 20 otherwise; set RUN_LOGGED_TAIL=<n> to override.
 #   Exits with the command's own exit code (2 on a usage error).
 #
+#   The log's last line is `[run-logged] exit: <code>`, written after the command finishes, so
+#   a window waiting on a command in the background can tell from the log alone that it is
+#   done (`tail -n 3 <log>`) — never by reading the tool's tasks/*.output, which is the whole
+#   output again. The line count and tail above leave it out.
+#
 # Copied into the run's <run-root>/ at Stage 7, next to repo-state.sh.
 
 set -uo pipefail
@@ -53,10 +58,15 @@ else
   k=20
 fi
 
+tail_out="$(tail -n "$k" "$log")"
+# A command whose output ends without a newline must not glue the marker onto its last line.
+[ -s "$log" ] && [ -n "$(tail -c 1 "$log")" ] && echo >> "$log"
+echo "[run-logged] exit: $rc" >> "$log"
+
 echo "\$ $cmd"
 echo "exit: $rc"
 echo "log: $log ($lines lines)"
 echo "--- last $k lines ---"
-tail -n "$k" "$log"
+[ -n "$tail_out" ] && printf '%s\n' "$tail_out"
 
 exit "$rc"

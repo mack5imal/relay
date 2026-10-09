@@ -73,7 +73,7 @@ w="$(new_workdir)"; cd "$w" || exit 1
 run bash "$RL" "$w/long.log" 'seq 1 5000'
 assert_rc "long command succeeds" 0
 assert_eq "stdout is 4 header lines + 3 tail lines" "7" "$(count_lines "$OUT")"
-assert_eq "log holds all 5000 lines" "5000" "$(wc -l < "$w/long.log" | tr -d ' ')"
+assert_eq "log holds all 5000 lines, then the exit marker" "5001" "$(wc -l < "$w/long.log" | tr -d ' ')"
 cd "$REPO_ROOT"; rm -rf "$w"
 
 # ---------------------------------------------------------------------------
@@ -124,6 +124,22 @@ assert_contains "override tail keeps the last line" "line-5" "$OUT"
 assert_missing "override tail drops earlier lines" "line-4" "$OUT"
 OUT="$(RUN_LOGGED_TAIL=lots bash "$RL" "$w/t2.log" 'echo x' 2>/dev/null)"; RC=$?
 assert_contains "non-numeric override falls back to default" "--- last 3 lines ---" "$OUT"
+cd "$REPO_ROOT"; rm -rf "$w"
+
+# ---------------------------------------------------------------------------
+echo "[10] The log ends with an exit marker — how a window waiting in the background knows it is done"
+w="$(new_workdir)"; cd "$w" || exit 1
+run bash "$RL" "$w/ok.log" 'echo one; echo two'
+assert_eq "last line of a passing command's log" "[run-logged] exit: 0" "$(tail -n 1 "$w/ok.log")"
+assert_contains "the summary counts the command's lines, not the marker" "$w/ok.log (2 lines)" "$OUT"
+assert_missing "the printed tail leaves the marker out" "[run-logged]" "$OUT"
+run bash "$RL" "$w/bad.log" 'echo oops; exit 3'
+assert_eq "a failing command's code is in the marker" "[run-logged] exit: 3" "$(tail -n 1 "$w/bad.log")"
+run bash "$RL" "$w/nonl.log" 'printf no-newline'
+assert_eq "output without a final newline keeps its own line" "no-newline" "$(head -n 1 "$w/nonl.log")"
+assert_eq "and the marker its own" "[run-logged] exit: 0" "$(tail -n 1 "$w/nonl.log")"
+run bash "$RL" "$w/empty.log" 'true'
+assert_eq "a silent command's log is just the marker" "[run-logged] exit: 0" "$(cat "$w/empty.log")"
 cd "$REPO_ROOT"; rm -rf "$w"
 
 # ---------------------------------------------------------------------------

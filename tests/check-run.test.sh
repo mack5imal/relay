@@ -316,6 +316,55 @@ assert_eq "a legacy run root (no fields, no Review: lines) has no rule" "ok" \
   "$(steps legacy - - -,- "d:Relay phase 1;d:Relay phase 2;d:Relay audit round 1")"
 
 echo
+echo "subagent windows: saved tool output, whole-file Reads, long unlogged output"
+# srun <name> — a minimal orchestrator transcript plus one subagent window whose tool calls
+# come from SUB_CALLS: one per line, "bash <command> [|lines=<n of output>]" or "read <path> [part]"
+srun() {
+  local d="$W/$1"; mkdir -p "$d/run" "$d/t/subagents"
+  printf '**Status:** COMPLETE\n**Branch:** no-git\n\n| # | Phase | Status |\n|---|---|---|\n' > "$d/run/STATE.md"
+  printf '{"description": "Relay phase 1"}\n' > "$d/t/subagents/agent-a.meta.json"
+  python3 - "$d/t.jsonl" "$d/t/subagents/agent-a.jsonl" <<'PY'
+import json, os, sys
+def a(*items): return {"type": "assistant", "message": {"content": list(items)}}
+def u(*items): return {"type": "user", "message": {"content": list(items)}}
+with open(sys.argv[1], "w") as f:
+    for r in [u({"type": "text", "text": "go"}),
+              a({"type": "text", "text": "AUDIT_COMPLETE\nRELAY_RUN_COMPLETE\nPush: skipped"})]:
+        f.write(json.dumps(r) + "\n")
+recs = [u({"type": "text", "text": "Read the brief"})]
+for i, line in enumerate(filter(None, os.environ.get("SUB_CALLS", "").split("\n"))):
+    kind, _, rest = line.partition(" ")
+    if kind == "bash":
+        cmd, _, n = rest.partition(" |lines=")
+        recs.append(a({"type": "tool_use", "id": f"c{i}", "name": "Bash", "input": {"command": cmd}}))
+        recs.append(u({"type": "tool_result", "tool_use_id": f"c{i}", "content": "\n".join(["x"] * int(n or 1))}))
+    else:
+        path, _, part = rest.partition(" ")
+        inp = {"file_path": path, **({"offset": 1, "limit": 50} if part else {})}
+        recs.append(a({"type": "tool_use", "id": f"c{i}", "name": "Read", "input": inp}))
+        recs.append(u({"type": "tool_result", "tool_use_id": f"c{i}", "content": "ok"}))
+with open(sys.argv[2], "w") as f:
+    for r in recs: f.write(json.dumps(r) + "\n")
+PY
+  OUT="$(python3 "$CR" "$d/t.jsonl" "$d/run" 2>&1)"
+}
+SUB_CALLS=$'bash tail -n 3 run/logs/phase-1/a1-test.log\nbash ls /tmp/x/tasks/\nbash grep -n foo src/tasks/list.ts' srun polllog
+assert_missing "polling the run-logged log is the approved wait" "saved output" "$OUT"
+SUB_CALLS=$'bash tail -n 20 /private/tmp/s/tasks/b6dk.output' srun readtask
+assert_contains "reading tasks/*.output is a violation" "1 read(s) of a tool's saved output (/tasks/b6dk.output)" "$OUT"
+assert_contains "… pointing at the log" "checked through its run-logged.sh log" "$OUT"
+SUB_CALLS=$'read /x/tool-results/abc.txt' srun readtr
+assert_contains "a Read of tool-results/ too" "saved output (tool-results/)" "$OUT"
+SUB_CALLS=$'read src/a.ts\nread src/b.ts\nread src/c.ts\nread src/d.ts\nread src/e.ts\nread src/f.ts\nread src/g.ts part\nread run/phases/phase-1.brief.md\nread design/screens/x.png' srun reads
+assert_contains "six whole-file Reads warn" "6 whole-file Read(s) with no offset/limit: a.ts, b.ts, c.ts, d.ts" "$OUT"
+SUB_CALLS=$'read src/a.ts\nread src/b.ts\nread src/c.ts\nread src/d.ts\nread src/e.ts\nread src/f.ts part' srun fivereads
+assert_missing "five do not (ranged Reads, the brief and images never count)" "whole-file Read(s)" "$OUT"
+SUB_CALLS=$'bash npm test |lines=200\nbash npm run build |lines=90\nbash bash run/run-logged.sh run/logs/t.log \'npm test\' |lines=200\nbash sed -n 1,120p src/a.ts |lines=120\nbash git status |lines=3' srun twolong
+assert_missing "two long results do not warn yet (range reads and run-logged calls never count)" "printed more than" "$OUT"
+SUB_CALLS=$'bash npm test |lines=200\nbash npm run build |lines=90\nbash cd app && npx tsc |lines=60' srun long
+assert_contains "a third long result outside run-logged.sh warns" "3 Bash call(s) printed more than 40 lines without run-logged.sh" "$OUT"
+
+echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ] && echo "All fixture scenarios passed." && exit 0
 exit 1

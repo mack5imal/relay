@@ -44,6 +44,15 @@ REPORT_INTRO = "The report follows:\n"
 CANONICAL_PROMPT = "Read `{brief}` and follow it exactly."
 FORBIDDEN_READ = re.compile(r"\.brief\.md|\.report\.md|/tasks/[^ ]*\.output|tool-results/")
 BACKGROUNDED = "did not complete within"  # the harness's auto-background notice
+# A subagent reading a tool's saved output puts that output back in its window; the approved way
+# to look at a backgrounded command is its run-logged.sh log (PHASE-BRIEF.md §6). Only an actual
+# saved-output path counts — `ls` of the tasks folder or an unrelated `/tasks/` path does not.
+SAVED_OUTPUT = re.compile(r"/tasks/[^ '\"]*\.output|tool-results/")
+LONG_OUTPUT_LINES = 40   # a Bash result longer than this belonged in a run-logged.sh log …
+LONG_OUTPUT_WARN = 3     # … warned on from the third such call in a window
+READ_CMDS = {"sed", "grep", "rg", "head", "tail", "ls", "wc", "awk", "cat", "find"}  # reads, judged elsewhere
+WHOLE_READS_WARN = 5     # whole-file Reads per window before it is worth a warning (tunez: 13–15)
+IMAGE_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf")
 # git writes only relay-git.sh may make: a subagent commits through it, the orchestrator only
 # pushes through it (after AUDIT_COMPLETE). Matched at the start of a shell segment; the
 # segment's arguments run to the next ; & | or newline. The orchestrator may make none of these
@@ -506,6 +515,9 @@ def check_subagents(session_dir: Path, run_root: Path, f: Findings) -> list[dict
         desc = meta.get("description", path.stem)
         peak, requests = 0, set()
         bash = run_logged = cats = tool_results = backgrounded = denied = 0
+        whole_reads = long_unlogged = 0
+        read_hits: list[str] = []
+        saved_hits: list[str] = []
         raw_git: list[str] = []
         relay_commits = 0
         reports_written: list[tuple[str, str]] = []
@@ -536,9 +548,19 @@ def check_subagents(session_dir: Path, run_root: Path, f: Findings) -> list[dict
                             cat_hits.append(hit)
                         if re.search(r"cat\s*>>?\s*\S*\.report\.md|>\s*\S*\.report\.md", cmd):
                             reports_written.append(("bash", cmd))
-                        tool_results += "tool-results/" in cmd or "/tasks/" in cmd
+                        for m in SAVED_OUTPUT.finditer(cmd):
+                            tool_results += 1
+                            saved_hits.append(m.group(0))
                     if name == "Read":
-                        tool_results += "tool-results/" in str(inp.get("file_path", "")) or "/tasks/" in str(inp.get("file_path", ""))
+                        fp = str(inp.get("file_path", ""))
+                        m = SAVED_OUTPUT.search(fp)
+                        if m:
+                            tool_results += 1
+                            saved_hits.append(m.group(0))
+                        elif (inp.get("offset") is None and inp.get("limit") is None
+                              and not fp.endswith(".brief.md") and not fp.lower().endswith(IMAGE_EXT)):
+                            whole_reads += 1
+                            read_hits.append(Path(fp).name)
                     if name == "Write" and str(inp.get("file_path", "")).endswith(".report.md"):
                         reports_written.append(("write", inp.get("content", "")))
                     if name == "SubagentHandback":
@@ -546,6 +568,14 @@ def check_subagents(session_dir: Path, run_root: Path, f: Findings) -> list[dict
                 elif t == "tool_result":
                     s = json.dumps(it.get("content"))
                     backgrounded += BACKGROUNDED in s
+                    use = uses.get(it.get("tool_use_id")) or {}
+                    ucmd = (use.get("input") or {}).get("command", "")
+                    first = re.sub(r"^(?:cd\s+\S+\s*&&\s*)+", "", ucmd.strip()).split(" ", 1)[0]
+                    if use.get("name") == "Bash" and "run-logged.sh" not in ucmd and first not in READ_CMDS:
+                        c = it.get("content")
+                        text = c if isinstance(c, str) else "\n".join(
+                            x.get("text", "") for x in (c or []) if isinstance(x, dict))
+                        long_unlogged += text.count("\n") + 1 > LONG_OUTPUT_LINES
                     denied += bool(it.get("is_error") and "denied" in s)
                 elif t == "text" and rec.get("type") == "assistant":
                     final_text = it.get("text", "")
@@ -554,11 +584,13 @@ def check_subagents(session_dir: Path, run_root: Path, f: Findings) -> list[dict
             final_text = handback_text
         rmarks = markers(final_text)
         row = dict(desc=desc, peak=peak, requests=len(requests), bash=bash, run_logged=run_logged, cats=cats,
+                   whole_reads=whole_reads, long_unlogged=long_unlogged,
                    tool_results=tool_results, backgrounded=backgrounded, denied=denied, blocks=len(rmarks),
                    report_file=bool(reports_written))
         rows.append(row)
         if tool_results:
-            f.err(f"subagent {desc!r}: {tool_results} read(s) of tool-results/ or tasks/*.output")
+            f.err(f"subagent {desc!r}: {tool_results} read(s) of a tool's saved output "
+                  f"({', '.join(sorted(set(saved_hits)))}) — a backgrounded command is checked through its run-logged.sh log")
         if raw_git:
             f.err(f"subagent {desc!r}: ran {', '.join(sorted(set(raw_git)))} itself — relay-git.sh commit is the only way a subagent commits, and it never changes branch")
         if "RELAY_PHASE_DONE" in rmarks and not relay_commits:
@@ -567,6 +599,10 @@ def check_subagents(session_dir: Path, run_root: Path, f: Findings) -> list[dict
             f.warn(f"subagent {desc!r}: {backgrounded} Bash call(s) moved to the background")
         if cats:
             f.warn(f"subagent {desc!r}: {cats} whole-file cat(s): {'; '.join(repr(h) for h in cat_hits[:4])}")
+        if whole_reads > WHOLE_READS_WARN:
+            f.warn(f"subagent {desc!r}: {whole_reads} whole-file Read(s) with no offset/limit: {', '.join(read_hits[:4])}")
+        if long_unlogged >= LONG_OUTPUT_WARN:
+            f.warn(f"subagent {desc!r}: {long_unlogged} Bash call(s) printed more than {LONG_OUTPUT_LINES} lines without run-logged.sh")
         if rmarks and not reports_written:
             f.err(f"subagent {desc!r}: returned marker blocks but never wrote a .report.md")
         if reports_written:
@@ -679,10 +715,10 @@ def main(argv: list[str]) -> int:
     print(f"Run: {run_root}")
     print(f"Orchestrator: {len(reqs)} requests, peak {peak:,} tokens, {len(orch['agents'])} dispatches\n")
     print("Subagents")
-    hdr = f"  {'dispatch':<22} {'peak':>8} {'reqs':>4} {'bash':>4} {'logged':>6} {'cats':>4} {'bg':>2} {'deny':>4} {'blocks':>6} {'report':>6}"
+    hdr = f"  {'dispatch':<22} {'peak':>8} {'reqs':>4} {'bash':>4} {'logged':>6} {'long':>4} {'cats':>4} {'reads':>5} {'bg':>2} {'deny':>4} {'blocks':>6} {'report':>6}"
     print(hdr)
     for r in rows:
-        print(f"  {r['desc']:<22} {r['peak']:>8,} {r['requests']:>4} {r['bash']:>4} {r['run_logged']:>6} {r['cats']:>4} {r['backgrounded']:>2} {r['denied']:>4} {r['blocks']:>6} {'yes' if r['report_file'] else 'no':>6}")
+        print(f"  {r['desc']:<22} {r['peak']:>8,} {r['requests']:>4} {r['bash']:>4} {r['run_logged']:>6} {r['long_unlogged']:>4} {r['cats']:>4} {r['whole_reads']:>5} {r['backgrounded']:>2} {r['denied']:>4} {r['blocks']:>6} {'yes' if r['report_file'] else 'no':>6}")
     print("\nSequence")
     for n in f.notes:
         print(f"  · {n}")

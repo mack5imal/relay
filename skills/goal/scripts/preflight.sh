@@ -215,7 +215,7 @@ for i in "${!cmds[@]}"; do
   else
     failed=$((failed + 1)); [ -n "$first_fail" ] || first_fail="$c exited $rc"
     lines+=("- FAIL  $c — exit $rc (log: $log)")
-    while IFS= read -r t; do lines+=("      $t"); done < <(tail -n 5 "$log" 2>/dev/null)
+    while IFS= read -r t; do lines+=("      $t"); done < <(grep -v '^\[run-logged\] exit:' "$log" 2>/dev/null | tail -n 5)
     [ -n "${logins[$i]}" ] && lines+=("      run: ! ${logins[$i]}")
   fi
 done
