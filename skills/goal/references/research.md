@@ -6,7 +6,7 @@ makes a good question, and the researcher contract.
 
 ## Why here, and why not per phase
 
-Research used to be a Stage 3 bullet — "optional, use if available". The first tunez plan shows
+Research used to be a Stage 3 bullet — "optional, use if available". The first Tunez plan shows
 what that does: `tools.md` recorded WebSearch as available, then `THINKING.md` planned the stack
 "from training knowledge" and did no research on pitch detection (the riskiest part of the app)
 or on iOS Safari's audio rules. An optional instruction that produces no artifact gets skipped.
@@ -62,7 +62,7 @@ small (specific WebFetch prompts), and writes `research/<slug>.md`:
 (high/medium/low) · `Contradicts: <S<k>… | none>`.
 
 Before it returns, it runs `check-research.sh <run-root> --only <slug>` on its own file and fixes
-every ❌ (fix 24). In the tunez test plan, 5 of 6 researchers failed the planner's check the
+every ❌ (fix 24). In the Tunez test plan, 5 of 6 researchers failed the planner's check the
 first time on marker format alone: `— same source (…)`, and notes written inside
 `unverified (training knowledge; …)`. The second is now accepted; "same source" still fails,
 with a message saying to repeat the URL. Checking in the researcher's own window costs the
@@ -89,8 +89,8 @@ grades against it.
 - A planner session that ends mid-research is not resumable at that point (the run has no
   `STATE.md` yet); re-running starts the stage again. The answer files already written stay in
   `research/` for reference.
-- The first real use of this stage is the tunez re-plan. The researcher brief was dry-run once
-  on the tunez pitch-detection question (`DESIGN.md` decisions log, 2026-09-22): 16 tool calls, 8 sources, a real
+- The first real use of this stage is the Tunez re-plan. The researcher brief was dry-run once
+  on the Tunez pitch-detection question (`DESIGN.md` decisions log, 2026-09-22): 16 tool calls, 8 sources, a real
   contradiction found (S3's 80 ms is not fully verifiable on iOS — the browser cannot measure
   microphone input latency). It also produced the `derived:` finding class and the 120-word
   Answer advisory.

@@ -189,9 +189,9 @@ planner_scope="$(awk '
 
 # --- planner-chosen values ---------------------------------------------------------------
 # A value nobody gave — a limit or count the planner filled in while settling an edge case — is
-# written into its criterion followed by `(planner)` (tunez: an untagged "no-pitch state within
+# written into its criterion followed by `(planner)` (Tunez: an untagged "no-pitch state within
 # 150 ms" was later put to the owner as "the spec says…"). A constraint the planner added ends
-# in `(planner)` too. Both are relay's call (PHASE-BRIEF.md §3b); count them for Stage 6b.
+# in `(planner)` too. Both are Relay's call (PHASE-BRIEF.md §3b); count them for Stage 6b.
 planner_values="$(awk '
   /^##[[:space:]]/ { s = tolower($0); crit = (s ~ /^##[[:space:]]+success criteria/); cons = (s ~ /^##[[:space:]]+constraints/); next }
   /\{\{/ { next }

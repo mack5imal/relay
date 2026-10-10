@@ -18,8 +18,8 @@
 # A glob loop, so it lives in a script, not a SKILL.md bash block (zsh: an unmatched glob is an
 # error).
 #
-# Then one `elsewhere: <path> — <n> images, <m> design docs` line per design that is not a relay
-# package — most apps that predate relay keep theirs somewhere else (a design-tool export in
+# Then one `elsewhere: <path> — <n> images, <m> design docs` line per design that is not a Relay
+# package — most apps that predate Relay keep theirs somewhere else (a design-tool export in
 # `design_handoff_<app>/`, a `docs/mockups/` folder, a DESIGN.md with a token table). Left
 # unnoticed, the run briefs the designer for a fresh look and the design checks read that
 # material as the app's own code (a colour listed in an old README is "hard-coded outside the

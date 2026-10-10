@@ -10,7 +10,7 @@
 # --roadmap checks ROADMAP.md's `**Deliverables:**` lists instead. The audit checks every
 # deliverable against the repository (`repo-state.sh deliverable <path>`), so each bullet must
 # name a path or glob in backticks — `` `src/x.ts` — what it is `` — or be `none — <why>`.
-# tunez's 19 phases each wrote "see `phases/phase-N.md` §Work — …" on the heading line, and
+# Tunez's 19 phases each wrote "see `phases/phase-N.md` §Work — …" on the heading line, and
 # the audit had to rebuild 146 deliverables from the specs' prose.
 
 set -uo pipefail
@@ -158,7 +158,7 @@ if [[ "$cmd_bullets" -eq 0 ]]; then
 fi
 
 # Hard: a command bullet is the command alone (optionally wrapped in backticks). Pre-flight and
-# the tidy-up / security gate run each bullet; tunez's "`npm run build` — vite build summary
+# the tidy-up / security gate run each bullet; Tunez's "`npm run build` — vite build summary
 # line; exit 0" ran as command substitution plus `; exit 0` — a false pass — and "npm test —
 # vitest" failed with "—: command not found". The parsers now drop such a description, but a
 # spec that carries one says something it should say under `## Evidence required`.
@@ -223,7 +223,7 @@ fi
 # Advisory: `Estimated files:` is the phase-sizing gate (a phase must fit one subagent
 # window). Warn when missing or over the threshold; never fail — old specs lack the line.
 # Over the threshold is fine with a stated reason — `Estimated files: 14 — one migration, no
-# clean seam` — because a split at no real seam makes the design worse (fix 28: tunez phase 1
+# clean seam` — because a split at no real seam makes the design worse (fix 28: Tunez phase 1
 # dropped its shared test setup to fit the old limit of 8, set before any window was measured).
 SIZE_LIMIT="${RELAY_PHASE_FILE_LIMIT:-12}"
 est_line="$(grep -m1 -E '^Estimated files:' "$f" || true)"

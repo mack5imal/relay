@@ -51,7 +51,7 @@ reports `pass` / `fail` / `trust-prior-verify` per entry, so each needs a check 
 actually run. `S<k>` is the stable id the audit cites. A value the planner chose because nobody
 gave one (a limit or count, typically while settling an edge case) is followed by `(planner)` —
 "within 150 ms (planner)" — so the plan review lists it and the checks after the build treat it
-as relay's call, not the owner's.
+as Relay's call, not the owner's.
 
 - **S1 — {{SHORT_LABEL}}**: {{SPECIFIC_TESTABLE_STATEMENT}}
   - Current: {{WHAT_EXISTS_OR_DOES_NOT_TODAY}}

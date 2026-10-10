@@ -26,7 +26,7 @@
 # (`none`, or the S<k> ids it conflicts with). Format: templates/RESEARCH-BRIEF.md.
 #
 # A `derived:` or `unverified (training knowledge…)` marker may carry a note inside the
-# parentheses; "same source" is not a source (fix 24: 5 of 6 researchers in the tunez run wrote
+# parentheses; "same source" is not a source (fix 24: 5 of 6 researchers in the Tunez run wrote
 # one of these and failed their first check).
 #
 # --only <slug>  check one answer file whatever its index Status, and skip the index — the

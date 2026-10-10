@@ -126,7 +126,7 @@ fi
 
 Read the index. Then **selectively** read individual memory files that look relevant to the task (feedback memories about the stack/domain, user role memories, related project memories). Don't dump them all into context — pull what matters.
 
-**Stale memories.** A memory that points at a relay run which no longer exists — a
+**Stale memories.** A memory that points at a Relay run which no longer exists — a
 `relay_run:` key, or any `.relay/<run-id>` path in its body — describes a plan or build whose
 artifacts are gone. Find them before reading anything:
 
@@ -135,7 +135,7 @@ bash "$RELAY_DIR/scripts/stale-memories.sh" "$MEM_DIR"   # one "STALE <name> (ru
 ```
 
 Do **not** apply a `STALE` memory. List each one in the intake as `Stale (run gone): <name>` so
-the user can delete it or say it still holds. (A fresh tunez run once started with a deleted
+the user can delete it or say it still holds. (A fresh Tunez run once started with a deleted
 run's plan in context this way.)
 
 Capture applicable memory hits in `$RELAY_ROOT/applied-memories.md` (one line per memory: name, why-applicable, what-it-changes). Surface them in Stage 1 as "Applied from memory: …" so the user can see what's being inherited and correct anything stale.
@@ -183,7 +183,7 @@ tidy-up pass and the security pass (Stage 4); the audit still runs. It is indepe
 `--quick`: `--quick` shortens planning, `--lean` shortens the checks, and either works alone.
 **Push** is off unless chosen: `--push` / `--no-push` decide it for this run; without either,
 `RELAY_PUSH` (printed by the setup block — `on` or `off`, the user's standing default) does;
-otherwise it is off. On, the orchestrator pushes the branch relay creates once after the audit;
+otherwise it is off. On, the orchestrator pushes the branch Relay creates once after the audit;
 off, the branch stays local and the run's last message gives the push command. A push is the
 one outward-facing, hard-to-undo thing a run does, and it happens unattended — so it is never
 on by default (owner, 2026-10-07).
@@ -238,7 +238,7 @@ look — no fresh directions; it hands the designer the existing colours, compon
 **I already have the new screens' design** (I'll put it in `design/<feature-name>/`) · **No design
 stage**. Exit 1 means that name already holds a package — pick another.
 
-**A look that is not a relay package.** Most apps that predate relay keep their design elsewhere —
+**A look that is not a Relay package.** Most apps that predate Relay keep their design elsewhere —
 `design-dir.sh` lists each candidate as `elsewhere: <path> — <n> images, <m> design docs` (a
 design-tool export, a mockups folder, a DESIGN.md with a token table) — or only in the code (a
 theme file and the screens already built). Either way the new screens have a look to match, and
@@ -248,7 +248,7 @@ task adds screens to an app that already has some, ask instead: "This app alread
 line: "This app already has a look in its code. Design the new screens to match it?"; several:
 name the likeliest and list the rest in the question). Options: **Design stage, matching it
 (Recommended)** (a brief for adding to an existing app: one take in the current look, from its
-colours, components and screens; relay's design checks skip `<path>` and never move or edit it) ·
+colours, components and screens; Relay's design checks skip `<path>` and never move or edit it) ·
 **Design stage, fresh look** (the new-app brief, three takes; `<path>` is still skipped) · **I
 already have the new screens' design** (I'll put it in `<design dir>/`) · **No design stage**. The
 owner's Other ("that folder is an old design", "it's in `docs/ui/`") settles which paths are the
@@ -319,7 +319,7 @@ there is no usable push remote, `gh: <login>|signed-out|missing` and `suggest: <
   <remote>`.
 
   **Relay never creates a public repository and never pushes while planning.** `remote` only
-  adds `origin`. The one push is the run branch, after the audit. On tunez, the planner made the
+  adds `origin`. The one push is the run branch, after the audit. On Tunez, the planner made the
   repo itself and pushed the owner's `main`.
 
 The same remote question runs when the user turns push on at Stage 6.
@@ -448,14 +448,14 @@ Then **Seed Closer** rounds until the gate passes, each naming the lowest-scorin
 **Never force-stop.** From round 6 on, the **last question of every round** is the choice —
 **Write SPEC.md** / **Keep going** / **Write it and flag the gaps** — with your recommendation
 first and the dimensions still below minimum named in the question. Not a closing sentence, not
-left for the user to raise: on the tunez run rounds 6 and 7 never offered it. If the user stops
+left for the user to raise: on the Tunez run rounds 6 and 7 never offered it. If the user stops
 early, the below-minimum dimensions are recorded as assumptions, not silently treated as answered.
 
 **Show the final score.** When the gate passes (after round 5 or any later round), the next
 question opens with the final scoreboard — `Scores (final) — goal … · boundary … · constraint … ·
 acceptance … → ambiguity <x> (gate ≤ 0.15, passed)` — and asks **Write SPEC.md (Recommended)** /
 **Keep going**. A passing score that only reaches the interview log is one the user never saw
-(tunez: 0.14, passed, never shown).
+(Tunez: 0.14, passed, never shown).
 
 ### Question discipline
 
@@ -469,7 +469,7 @@ interview rounds.
   the plain sentence, in parentheses, or not at all. Turn numbers into experience: "the needle
   reacts instantly; the note name updates 10 times a second", not "per-frame redraw vs 10 Hz
   text". **Before sending, check: would they need to look anything up to answer?** If so,
-  rewrite it. The tunez owner spent 7 minutes on one research question and could not answer a
+  rewrite it. The Tunez owner spent 7 minutes on one research question and could not answer a
   latency one ("I don't understand the difference"). One of those questions, before and after:
 
   > *Before:* "The only detectors with published ≥95% RPA on real singing are neural
@@ -516,7 +516,7 @@ question, a remark like "most of the edges collapse into…", the spec summary, 
 with one plain sentence: *edge cases are the unusual situations around each goal — nothing there
 yet, at a limit, odd text, done twice, two at once — and the final check only tests the ones
 written down.* Name each as a situation they would recognise ("a song with no sung notes", "a
-title like 'Beyoncé'"), never the category word alone (the tunez owner had to ask what "edges"
+title like 'Beyoncé'"), never the category word alone (the Tunez owner had to ask what "edges"
 meant):
 
 ```bash
@@ -537,7 +537,7 @@ you — a time limit, a count, a size. Write it into the criterion followed by `
 "shows the no-pitch state within 150 ms (planner)". It is your call, not the owner's: Stage 6b
 lists it under *Numbers I chose*, and a check after the build may change it (flagged in the run's
 last message), exactly like a `(planner)` out-of-scope item. Untagged, it reads as something the
-owner agreed — tunez's 150 ms later clashed with the design's 250 ms and was put to the owner as
+owner agreed — Tunez's 150 ms later clashed with the design's 250 ms and was put to the owner as
 "the spec says…". A value the owner gave, in an answer or the original request, is never tagged.
 
 The floor is **enforced**: `validate-spec.sh` re-probes the spec's *current* criteria and fails on
@@ -601,7 +601,7 @@ one-click correction.
 
 Runs after `SPEC.md` passes `validate-spec.sh`, before the design brief and before any phase is
 cut — research can change which phases exist, and some findings are design constraints. **Once,
-here; never per phase:** relay plans every phase up front and executes cold, so a finding that
+here; never per phase:** Relay plans every phase up front and executes cold, so a finding that
 arrived during execution would contradict an approved plan with nobody to arbitrate.
 `--quick` changes nothing here. Background, question examples and the failure it fixes:
 `references/research.md`.
@@ -648,7 +648,7 @@ the assumptions, not a blocker.
 do Stage 2.7d's **read-only** work — `check-design.sh`, drafting the fidelity criteria, reading
 `HANDOFF.md`. Ask no Stage 2.7e question and edit no `SPEC.md` until step f is resolved, then
 reconcile against the post-research spec: both steps rewrite `SPEC.md`, and a contradiction can
-change a criterion reconciliation compares against — the tunez test run reconciled first and
+change a criterion reconciliation compares against — the Tunez test run reconciled first and
 could have had the user answer the same criterion twice.
 
 **d. Validate.**
@@ -679,7 +679,7 @@ with "unverified" when the finding is training knowledge. Keeping the spec is a 
 finding can be weak, the user can know something the researcher didn't (their own recordings),
 or "hard" may be a risk worth taking. **Write each question in plain language** (Question
 discipline): what the build will do, and how well, under each option — the finding's method
-names and figures go in one parenthetical line, if at all. This is where the tunez questions that
+names and figures go in one parenthetical line, if at all. This is where the Tunez questions that
 needed a lookup came from. Research
 never rewrites the spec on its own. Record each resolution under `## Resolutions` in the index,
 and add `**Research:** research/README.md — <n> questions, <u> unverified` under the `SPEC.md`
@@ -813,7 +813,7 @@ bash "$RELAY_DIR/scripts/prepare-design.sh" "<design dir>"   # unzips a lone .zi
 bash "$RELAY_DIR/scripts/check-design.sh" "<design dir>"
 ```
 
-`prepare-design.sh` is the one commit relay makes while planning: `<design dir>/` must be committed
+`prepare-design.sh` is the one commit Relay makes while planning: `<design dir>/` must be committed
 (untracked files would count as run changes, and `SPEC.md` records the package's sha), and the
 user should not have to run git to hand back a design. The commit holds only `<design dir>/` —
 anything else the user has staged stays staged, and an earlier package beside it is untouched. It
@@ -860,7 +860,7 @@ bash "$RELAY_DIR/scripts/check-design.sh" "<design dir>" --overlap [--ignore <De
 It lists every file outside `design/` that already holds one of the package's colour values or
 copy strings (at most 60 lines; skip a whole folder and re-run when it says there are more). The
 design checks read every file but `design/` and `.relay/` as the app's code, so sort each listed
-file — relay's call, listed at 6b where the owner can correct it:
+file — Relay's call, listed at 6b where the owner can correct it:
 - **Not part of the app** — a design export or mockup, a doc or brief, an old planning or run
   folder (`.planning/`, another tool's run folder): `--ignore <path>` (prefer the folder). Left in, its colour
   list fails the token check in every phase and its wording passes the copy check for an app that
@@ -914,7 +914,7 @@ criterion, constraint, prohibition and in-scope item. Sort the conflicts:
   spec to match) · **Spec wins** (the build deviates from the design here) · Other; recommend
   keeping the approved design unless it breaks a prohibition.
 
-The tunez test plan put 12 conflicts to the owner one by one; most were choices they had already
+The Tunez test plan put 12 conflicts to the owner one by one; most were choices they had already
 made in the design session. Record every
 conflict in `SPEC.md`'s `## Design reconciliation` — name an exempted item as `screen: <id>`,
 `component: <Name>`, `token: <name>` or `copy: <exact string>` so `--verify --except` honours it
@@ -985,7 +985,7 @@ Each phase has:
 - **Tidy-up pass** — `Cleanup: on` by default. After the last phase, one subagent removes the duplication, inconsistency and dead code that per-phase windows leave behind, behaviour-preserving only, before the audit re-verifies everything.
 - **Security pass** — `Security pass: yes` when the build touches any security surface: network or HTTP, authentication or authorisation, user input, file paths, shell or process execution, secrets or credentials, deserialisation, or new dependencies. Otherwise `skip — <reason>` (e.g. `skip — docs and styling only`). Name the surfaces you found; Stage 6 shows them.
 
-**Push** — `Push: on` or `off — <reason>`, from Stage 1: `off — default` when nothing chose it, `off — --no-push`, `off — RELAY_PUSH=off`, `off — no git repository`, `off — no remote`; `on` for `--push` or `RELAY_PUSH=on`, or `on — to <remote>` when Stage 1 picked one of several remotes. It only matters on a branch relay creates (Stage 7); on the user's own branch nothing is ever pushed, but write the field anyway.
+**Push** — `Push: on` or `off — <reason>`, from Stage 1: `off — default` when nothing chose it, `off — --no-push`, `off — RELAY_PUSH=off`, `off — no git repository`, `off — no remote`; `on` for `--push` or `RELAY_PUSH=on`, or `on — to <remote>` when Stage 1 picked one of several remotes. It only matters on a branch Relay creates (Stage 7); on the user's own branch nothing is ever pushed, but write the field anyway.
 
 **Under `--lean`**, write `Review: skip — --lean` on every phase, `Cleanup: off — --lean` and `Security pass: skip — --lean`. Still make the security assessment above: when it finds surfaces, Stage 6 warns that the pass is off, and the user can switch any check back on there (change that one field or line; the rest stay off). `references/phase-design.md` has the guidance on review skips and security surfaces.
 
@@ -996,11 +996,11 @@ Each phase has:
 Writing the specs is where late discoveries surface (an account has no such scope, a tool's
 licence breaks a constraint). If one means changing something the owner answered, a constraint,
 a prohibition or an outward-facing target, **stop and ask** before writing on (Operating
-principles) — the tunez planner made both of those changes here as "one more spec tweak".
+principles) — the Tunez planner made both of those changes here as "one more spec tweak".
 
 Three files, all under `$RELAY_ROOT/`:
 
-1. **`ROADMAP.md`** — the plan (template at `$RELAY_DIR/templates/ROADMAP.md`). Each phase's `**Deliverables:**` is a bullet list, one `` `path/or/glob` — what it is `` per line (`none — <why>` for a phase that only changes earlier phases' files) — never a pointer to the phase spec: the audit runs `repo-state.sh deliverable` on each path, and tunez's "see `phases/phase-N.md` §Work" lines left it rebuilding 146 paths from prose. Check them with `bash $RELAY_DIR/scripts/validate-phase.sh --roadmap "$RELAY_ROOT/ROADMAP.md"`.
+1. **`ROADMAP.md`** — the plan (template at `$RELAY_DIR/templates/ROADMAP.md`). Each phase's `**Deliverables:**` is a bullet list, one `` `path/or/glob` — what it is `` per line (`none — <why>` for a phase that only changes earlier phases' files) — never a pointer to the phase spec: the audit runs `repo-state.sh deliverable` on each path, and Tunez's "see `phases/phase-N.md` §Work" lines left it rebuilding 146 paths from prose. Check them with `bash $RELAY_DIR/scripts/validate-phase.sh --roadmap "$RELAY_ROOT/ROADMAP.md"`.
 2. **`STATE.md`** — live progress file the orchestrator records into after each report (via `record-phase.sh`) (template at `$RELAY_DIR/templates/STATE.md`; if Stage 2.7 already created it, fill that copy in). Fill `Memory dir:` with `$MEM_DIR` from Stage 0 — the `/goal` session has no other way to find where memory writeback goes. Fill `Design dir:` with `<design dir>` (`none` without a design stage; Stage 2.7b may have filled it already), and `Design reference:` with Stage 1's value (`none` without a design stage). Fill `Cleanup:` (`on`, or `off — <reason>`) and `Security pass:` (`yes`, or `skip — <reason>`) from Stage 4 — `record-phase.sh` routes the run by them, and a missing field means the step never runs. Fill `Push:` (`on`, or `off — <reason>`) too — `relay-git.sh` reads it, and a missing field means the old push-after-the-audit behaviour, not off.
 3. **`phases/phase-N.md`** — one work-spec file per phase (template at `$RELAY_DIR/templates/phase-goal.txt`, renamed conceptually to "phase spec"). **Any length** — these are read from disk by the executor, not passed to `/goal`, so no char budget.
 
@@ -1044,7 +1044,7 @@ research file whole.
 
 **Self-contained specs.** The executor is a fresh subagent that reads the spec inside its brief and cannot ask anyone anything. Anything you would have told an inline executor in passing — the assumption behind a criterion, which of two files is canonical, why a command is mandatory — goes in the spec's `## Notes`.
 
-**A `## Mandatory commands` bullet is the command alone** (backticks optional) — pre-flight, the tidy-up and the security pass run each bullet as written. Put the summary line it should print under `## Evidence required`; `validate-phase.sh` rejects a bullet with a description after the command (a tunez bullet `` `npm run build` — summary; exit 0 `` ran as `; exit 0` and passed). List the gate even when its prerequisites come from the build (no `package.json` before phase 1) — pre-flight reports those as not runnable yet, not as failures.
+**A `## Mandatory commands` bullet is the command alone** (backticks optional) — pre-flight, the tidy-up and the security pass run each bullet as written. Put the summary line it should print under `## Evidence required`; `validate-phase.sh` rejects a bullet with a description after the command (a Tunez bullet `` `npm run build` — summary; exit 0 `` ran as `; exit 0` and passed). List the gate even when its prerequisites come from the build (no `package.json` before phase 1) — pre-flight reports those as not runnable yet, not as failures.
 
 **No git in phase specs.** Relay commits every phase itself (`relay-git.sh commit`, the last step of a passing verify; `PHASE-BRIEF.md` §6), on the branch Stage 7 sets up, and pushes only after the audit, and only with `Push: on`. So a spec carries no commit, branch, or push bullets and no criterion about commits — a planner-written "commit as …" would make two commits per phase, and a "do not commit" would contradict the brief. The one exception is a push the task itself is about (a deploy that works by `git push`), and only when `SPEC.md` asks for it.
 
@@ -1087,7 +1087,7 @@ the summary; don't read the phase specs again. Re-run it after every Stage 6 rev
 ### Stage 6b — Summary print
 
 **Every count in the summary is copied from a script's output — never counted by hand.** On
-tunez the summary said 53 components where the spec said 50, and "7 worth your eye" where
+Tunez the summary said 53 components where the spec said 50, and "7 worth your eye" where
 `RUBRIC.md` flagged 8 (and listed 5). `Worth your eye (<K> of <N> criteria)` takes `<K>` and `<N>`
 from `build-rubric.sh`'s `rubric:` line and lists exactly `RUBRIC.md`'s flagged bullets; the
 `Design:` line's screens (and components / copy strings, when you mention them) come from
@@ -1228,9 +1228,9 @@ After Stage 6 returns "Start now" and **before** printing the `/goal` block, run
    ```bash
    bash "$RELAY_DIR/scripts/preflight.sh" "$RELAY_ROOT" --account 'gh auth status' 'gh auth login'
    ```
-   (one `--account '<status>' '<login>'` pair per account from step 1; none when the plan reaches no account). It unions every phase spec's `Mandatory commands:` into a deduplicated set and runs each once (full output in `$RELAY_ROOT/logs/preflight/`) — except a command whose prerequisites only the build creates (no `package.json` yet or no such script in it, no `Cargo.toml` / `go.mod` / `Makefile` / …, a script file that does not exist yet, `check-design.sh --verify`), which it lists as `- later <command> — <why>; first used by phase N` without running. That list is fixed in the script; you cannot add to it, so a broken baseline still shows as `FAIL`. Then it checks the working tree with `relay-git.sh preflight` — after the commands, so anything they created is caught too — appends the outcome to `STATE.md`'s `Notable events`, and prints the `PREFLIGHT_GREEN` / `PREFLIGHT_RED` block: per-command `ok` / `FAIL` lines (a failure with its exit code, last 5 lines, and `run: ! <login>` for an account check), then the `git:` lines. **Its output is the block — show it to the user as printed** (all of it, `later` lines included — never a summary of it); never write your own loop (the inline zsh loop broke on two runs and never printed the block). Exit 0 = green (`later` lines allowed), 1 = a command failed, 3 = the working tree is dirty. **The pre-flight outcome is never a plan assumption**: don't write "pre-flight will be red — dispatch with skip" into Key assumptions (the tunez planner did, which made the skip routine) — a red result goes to the owner through step 5.
+   (one `--account '<status>' '<login>'` pair per account from step 1; none when the plan reaches no account). It unions every phase spec's `Mandatory commands:` into a deduplicated set and runs each once (full output in `$RELAY_ROOT/logs/preflight/`) — except a command whose prerequisites only the build creates (no `package.json` yet or no such script in it, no `Cargo.toml` / `go.mod` / `Makefile` / …, a script file that does not exist yet, `check-design.sh --verify`), which it lists as `- later <command> — <why>; first used by phase N` without running. That list is fixed in the script; you cannot add to it, so a broken baseline still shows as `FAIL`. Then it checks the working tree with `relay-git.sh preflight` — after the commands, so anything they created is caught too — appends the outcome to `STATE.md`'s `Notable events`, and prints the `PREFLIGHT_GREEN` / `PREFLIGHT_RED` block: per-command `ok` / `FAIL` lines (a failure with its exit code, last 5 lines, and `run: ! <login>` for an account check), then the `git:` lines. **Its output is the block — show it to the user as printed** (all of it, `later` lines included — never a summary of it); never write your own loop (the inline zsh loop broke on two runs and never printed the block). Exit 0 = green (`later` lines allowed), 1 = a command failed, 3 = the working tree is dirty. **The pre-flight outcome is never a plan assumption**: don't write "pre-flight will be red — dispatch with skip" into Key assumptions (the Tunez planner did, which made the skip routine) — a red result goes to the owner through step 5.
 
-   Why the tree matters: relay commits each phase with `git add -A`, so any uncommitted change — modified tracked files **or** untracked files — would be swept into phase 1's commit (and `repo-state.sh` would count it as the run's work). The `git:` lines also carry the branch plan (on the default branch: a `relay/<run-id>` run branch, pushed after the audit with `Push: on` or kept local with it off; on any other branch: commits land there, never pushed) and warnings that never block — commit signing on, or a remote relay cannot reach (checked only with `Push: on`) (the run still finishes; a failed push is reported for the user to do by hand). Without git it says relay will not commit, and passes.
+   Why the tree matters: Relay commits each phase with `git add -A`, so any uncommitted change — modified tracked files **or** untracked files — would be swept into phase 1's commit (and `repo-state.sh` would count it as the run's work). The `git:` lines also carry the branch plan (on the default branch: a `relay/<run-id>` run branch, pushed after the audit with `Push: on` or kept local with it off; on any other branch: commits land there, never pushed) and warnings that never block — commit signing on, or a remote Relay cannot reach (checked only with `Push: on`) (the run still finishes; a failed push is reported for the user to do by hand). Without git it says relay will not commit, and passes.
 3. **Exit 3 — the tree is dirty** (whatever the commands did): ask with `AskUserQuestion`, putting the `git: ❌` line's path list in the question text: **"I've committed or stashed it — re-check"** / **"Stop here"**. Say how in the question: commit what they want to keep, or `! git stash -u` to set everything aside (`! git stash pop` after the run). **Never stash, commit, or discard the user's work yourself, and never offer to dispatch anyway** — phase 1's commit would take their work with it. "Re-check" runs step 2 again (the whole pre-flight — a command result from before the cleanup would be stale); "Stop here" ends the session; the plan stays in `$RELAY_ROOT`.
 4. **Exit 0 — green:** proceed to Stage 7.
 5. **Exit 1 — a command is red** (and the tree is clean): re-show the Stage 6 summary with the failures surfaced and a revised menu (still 4 options to stay under the `AskUserQuestion` ceiling): **"Skip pre-flight, dispatch anyway"** (replaces "Start now" — the user might know the baseline is intentionally broken, e.g., phase 1's whole job is to fix it) / **"Adjust an assumption"** / **"Tweak a phase"** / **"Restructure phases"**. If "Skip pre-flight, dispatch anyway" → `bash "$RELAY_DIR/scripts/preflight.sh" "$RELAY_ROOT" --bypass` (logs `Pre-flight bypassed by user.`) and proceed to Stage 7. Any other choice loops back through the normal Stage 6 revision flow; after the user finishes revising, Stage 6.5 re-runs.
@@ -1263,7 +1263,7 @@ Slash commands fire **only from user input** — agent message text is never par
    cp "$RELAY_DIR/scripts/run-logged.sh" "$RELAY_ROOT/run-logged.sh"
    cp "$RELAY_DIR/scripts/build-graph.sh" "$RELAY_DIR/scripts/map-slice.sh" "$RELAY_DIR/scripts/map-slice.py" "$RELAY_ROOT/"
    ```
-   `PROTOCOL.md` is the manual the executing agent reads at the start of the `/goal` session; the `sed` substitutes the concrete run root for every `{{RUN_ROOT}}` placeholder, so the agent reads `$RELAY_ROOT/STATE.md` (etc.), never a placeholder. `MARKERS.md` carries the exact transcript block formats — `references/` is never copied into a run, so this is the only copy the `/goal` session can read. `PHASE-BRIEF.md` is the subagent contract; `assemble-brief.sh` expands it per phase (spec + carryover + map slice + state + formats) into `phases/phase-N.brief.md`, which the orchestrator dispatches without reading; `record-phase.sh` validates each subagent's report file and applies every `STATE.md` change for its outcome, so the orchestrator never hand-edits `STATE.md`. `resume-line.sh` prints the ready-to-paste `/goal` that restarts a blocked run from the phases that remain — `PROTOCOL.md` calls it after a handoff so a stopped run is not lost. `recover.sh` is what a reopened session runs after an interruption: it tells a window that died with the old process from one still running, and settles it (`PROTOCOL.md` "After an interruption"). `repo-state.sh` is the complete-working-tree comparison helper the cleanliness + deliverable checks invoke (strategy in `references/repo-state-comparison.md`); `run-logged.sh` runs each mandatory command with its full output written to `<run-root>/logs/`, printing only the exit code and a short tail. `relay-git.sh` is how each phase, fix, review-fix, tidy-up, security-fix and audit-fix subagent commits its work once it passes, and how the orchestrator pushes the run branch once after the audit (only a branch relay created, only with `Push: on`; off prints the command instead; a failed push is reported, never a blocker). `build-graph.sh`, `map-slice.sh`, and `map-slice.py` let the executor refresh the code graph and read each phase's map slice. `check-design.sh --verify` is the design-fidelity check the S-criteria from Stage 2.7 name (copied on every run; unused without a design package). The helpers take paths as arguments, so none needs substitution.
+   `PROTOCOL.md` is the manual the executing agent reads at the start of the `/goal` session; the `sed` substitutes the concrete run root for every `{{RUN_ROOT}}` placeholder, so the agent reads `$RELAY_ROOT/STATE.md` (etc.), never a placeholder. `MARKERS.md` carries the exact transcript block formats — `references/` is never copied into a run, so this is the only copy the `/goal` session can read. `PHASE-BRIEF.md` is the subagent contract; `assemble-brief.sh` expands it per phase (spec + carryover + map slice + state + formats) into `phases/phase-N.brief.md`, which the orchestrator dispatches without reading; `record-phase.sh` validates each subagent's report file and applies every `STATE.md` change for its outcome, so the orchestrator never hand-edits `STATE.md`. `resume-line.sh` prints the ready-to-paste `/goal` that restarts a blocked run from the phases that remain — `PROTOCOL.md` calls it after a handoff so a stopped run is not lost. `recover.sh` is what a reopened session runs after an interruption: it tells a window that died with the old process from one still running, and settles it (`PROTOCOL.md` "After an interruption"). `repo-state.sh` is the complete-working-tree comparison helper the cleanliness + deliverable checks invoke (strategy in `references/repo-state-comparison.md`); `run-logged.sh` runs each mandatory command with its full output written to `<run-root>/logs/`, printing only the exit code and a short tail. `relay-git.sh` is how each phase, fix, review-fix, tidy-up, security-fix and audit-fix subagent commits its work once it passes, and how the orchestrator pushes the run branch once after the audit (only a branch Relay created, only with `Push: on`; off prints the command instead; a failed push is reported, never a blocker). `build-graph.sh`, `map-slice.sh`, and `map-slice.py` let the executor refresh the code graph and read each phase's map slice. `check-design.sh --verify` is the design-fidelity check the S-criteria from Stage 2.7 name (copied on every run; unused without a design package). The helpers take paths as arguments, so none needs substitution.
 3. Verify each `$RELAY_ROOT/phases/phase-N.md` exists; run `bash $RELAY_DIR/scripts/validate-phase.sh "$RELAY_ROOT/phases/phase-<N>.md"` on each, and `bash $RELAY_DIR/scripts/validate-phase.sh --roadmap "$RELAY_ROOT/ROADMAP.md"` once. Run `bash $RELAY_DIR/scripts/check-seeds.sh "$RELAY_ROOT"` once — a Stage 6 revision can renumber phases or rename a type a later phase seeds. Confirm `STATE.md` carries `Cleanup:` (`on` or `off — <reason>`), `Security pass:` (`yes` or `skip — <reason>`) and `Push:` (`on` or `off — <reason>`), with no placeholder: `grep -E '^\*\*(Cleanup|Security pass|Push):\*\* (on|off —|yes|skip —)' "$RELAY_ROOT/STATE.md"` must print three lines. Re-run `bash $RELAY_DIR/scripts/validate-spec.sh "$RELAY_ROOT/SPEC.md"` too — Stage 6 revisions can edit the spec, and this is the last point before it becomes the audit's rubric. A ❌ here blocks dispatch.
 4. Print a fenced code block with the **ready-to-paste `/goal` command**. **Substitute the literal value of `$RELAY_ROOT` for every `<run-root>` below** (e.g. `.relay/add-dark-mode-Ab3Kx9`) — the pasted line must contain the real directory, not the variable or the `<run-root>` placeholder. The condition is short, instructional but measurable, and well under the 4000-char `/goal` argument limit:
 
@@ -1279,7 +1279,7 @@ Slash commands fire **only from user input** — agent message text is never par
 
    Then, still part of the same instruction, print this paragraph (same substitutions):
 
-> **If the run stops.** Run it in auto mode and leave the session open: after a usage limit that resets within a day, Claude Code waits and continues on its own. After a weekly limit, a closed terminal, a crash or a restart, reopen the run's conversation — `cd <cwd> && claude --resume`, pick this run's session — and type `continue`: the goal comes back and relay picks up the interrupted phase, keeping its half-done work. If the goal does not come back, `bash <run-root>/resume-line.sh <run-root>` prints a fresh `/goal` line to paste instead.
+> **If the run stops.** Run it in auto mode and leave the session open: after a usage limit that resets within a day, Claude Code waits and continues on its own. After a weekly limit, a closed terminal, a crash or a restart, reopen the run's conversation — `cd <cwd> && claude --resume`, pick this run's session — and type `continue`: the goal comes back and Relay picks up the interrupted phase, keeping its half-done work. If the goal does not come back, `bash <run-root>/resume-line.sh <run-root>` prints a fresh `/goal` line to paste instead.
 
    Why a new session (commit 14): pasting here would carry the whole planning context into the orchestrator's window, and the planner's own reads, writes and researcher dispatches would sit in the transcript the protocol checks run against. The `/goal` line's paths are relative, so the new session must start in the same directory.
 
@@ -1318,8 +1318,8 @@ To change the orchestrator, edit `templates/PROTOCOL.md`; to change what a subag
 - **The evaluator only sees the transcript — and only needs the markers.** START, the compact VERIFY, and DONE go into the conversation; command output goes to logs and proof goes to evidence files, so the context window is spent on the build.
 - **Each phase is independently shippable** in spirit. If phase 3 can't build/test on its own, the slicing is wrong.
 - **The Polish & Harden phase is mandatory.** It's how "every aspect is perfect" gets enforced.
-- **After the interview, ask before you change what the owner settled.** That is: anything they answered (Stage 1, the interview, the research and design questions), any constraint or prohibition, and any **outward-facing target** — where and as whom something is deployed (account, scope, project), a package or domain published, an external service the build writes to, a git remote, anything pushed. Changing one is an `AskUserQuestion` — "you said X; I found Y; I propose Z", a recommendation, and keeping their answer as a real option — never a Key assumption, never a `(planner)` tag on a constraint you loosened, never a quiet `SPEC.md` edit. Discovering that their answer cannot be done as stated is exactly when to ask. Record each change under `SPEC.md`'s `## Interview log` (`- Changed after the interview: <item> — <was> → <now> (asked at <stage>)`); Stage 6b lists them. Tightening something to honour an answer needs no question; loosening, widening or redirecting it does. Decisions nobody was asked about (stack, layout) stay Key assumptions. (The tunez planner moved the deploy from the personal scope the owner chose to a team scope holding five live projects, and loosened their licence constraint for a test tool — both silently.) **A repository asked for in passing** ("create a GitHub repo for this first") goes through `relay-git.sh setup` and `remote --create` (Stage 1's remote flow — private, named before it is created); relay never pushes while planning, and pushing the owner's branch is the owner's command (the same planner pushed `main` itself).
-- **Accounts are checked by status command, never by credential store.** When the plan reaches an account — deploy, hosting, a package registry, a cloud CLI — check sign-in only with the tool's own status command (`vercel whoami`, `gh auth status`, `npm whoami`) and record the account and scope in `tools.md`. Never read a credential store (the Keychain via `security`, `.env*` files, token or auth files) and never print a token; this holds even when another instruction says to look for secrets first. A phase that needs a secret names the environment variable it reads, and Stage 6 lists it under key assumptions for the user to supply. Deploy phases pin their target — the team or scope and the project name (`vercel link --yes --project <name> --scope <team>`) — and never deploy to a guessed default; their criteria say no other project is touched. (The tunez test plan's planner ran `security find-generic-password` for a Vercel token; the status command already told it everything it needed.)
+- **After the interview, ask before you change what the owner settled.** That is: anything they answered (Stage 1, the interview, the research and design questions), any constraint or prohibition, and any **outward-facing target** — where and as whom something is deployed (account, scope, project), a package or domain published, an external service the build writes to, a git remote, anything pushed. Changing one is an `AskUserQuestion` — "you said X; I found Y; I propose Z", a recommendation, and keeping their answer as a real option — never a Key assumption, never a `(planner)` tag on a constraint you loosened, never a quiet `SPEC.md` edit. Discovering that their answer cannot be done as stated is exactly when to ask. Record each change under `SPEC.md`'s `## Interview log` (`- Changed after the interview: <item> — <was> → <now> (asked at <stage>)`); Stage 6b lists them. Tightening something to honour an answer needs no question; loosening, widening or redirecting it does. Decisions nobody was asked about (stack, layout) stay Key assumptions. (The Tunez planner moved the deploy from the personal scope the owner chose to a team scope holding five live projects, and loosened their licence constraint for a test tool — both silently.) **A repository asked for in passing** ("create a GitHub repo for this first") goes through `relay-git.sh setup` and `remote --create` (Stage 1's remote flow — private, named before it is created); Relay never pushes while planning, and pushing the owner's branch is the owner's command (the same planner pushed `main` itself).
+- **Accounts are checked by status command, never by credential store.** When the plan reaches an account — deploy, hosting, a package registry, a cloud CLI — check sign-in only with the tool's own status command (`vercel whoami`, `gh auth status`, `npm whoami`) and record the account and scope in `tools.md`. Never read a credential store (the Keychain via `security`, `.env*` files, token or auth files) and never print a token; this holds even when another instruction says to look for secrets first. A phase that needs a secret names the environment variable it reads, and Stage 6 lists it under key assumptions for the user to supply. Deploy phases pin their target — the team or scope and the project name (`vercel link --yes --project <name> --scope <team>`) — and never deploy to a guessed default; their criteria say no other project is touched. (The Tunez test plan's planner ran `security find-generic-password` for a Vercel token; the status command already told it everything it needed.)
 
 ---
 

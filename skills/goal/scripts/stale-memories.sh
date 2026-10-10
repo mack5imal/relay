@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# stale-memories.sh — find project memories that point at a relay run which no longer exists
+# stale-memories.sh — find project memories that point at a Relay run which no longer exists
 # (Stage 0, fix 17).
 #
 # Usage: stale-memories.sh <memory-dir>

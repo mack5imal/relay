@@ -6,7 +6,7 @@
 # Why this exists: a phase's map slice is built at dispatch, from a graph `assemble-brief.sh`
 # refreshes before every phase — so a seed only has to exist when its phase runs, not when the
 # plan is written. Judged from plan time instead, a greenfield plan has nothing to seed and turns
-# the map off for the whole run (all 14 tunez phases said `Map seeds: none`). A seed resolves when
+# the map off for the whole run (all 14 Tunez phases said `Map seeds: none`). A seed resolves when
 #
 #   graph  — it is in the plan-time graph (<run-root>/graph/graph.json): it exists today
 #   future — an earlier phase's spec names it verbatim (whole word, case-sensitive), outside that

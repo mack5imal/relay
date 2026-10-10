@@ -213,7 +213,7 @@ fi
 
 # --- {{CARRYOVER}} ------------------------------------------------------------------------
 # Every memory a window saved is listed in STATE.md's `## Carryover` as "- <name> (phase N)".
-# Inlining all of them made briefs grow without bound (tunez: 30 memories / 51 KB, phase briefs
+# Inlining all of them made briefs grow without bound (Tunez: 30 memories / 51 KB, phase briefs
 # 28 → 85 KB, check briefs ~100 KB, the first Read cut short from phase 13 on). So:
 #   phase / fix windows — full text of the memories written by the phases in the spec's
 #     `Depends on phases:` (and phase N itself), nearest phase first, within RELAY_CARRYOVER_KB
@@ -333,7 +333,7 @@ fi
 # prohibitions. The windows that decide what a check fixes (review, cleanup, security) get
 # {{SPEC_PLAN}} — those two sections plus in scope, out of scope, constraints and assumptions —
 # so a fix that goes against the plan is caught where it is chosen: deferred when the owner
-# decided that line, made and flagged when relay did (commit 14's security fix changed a
+# decided that line, made and flagged when Relay did (commit 14's security fix changed a
 # `(planner)` out-of-scope line and nothing noticed). Both come from one file, by mode.
 # SPEC.md is optional: runs planned before 0.9, and hand-authored test run roots,
 # have none. A missing spec degrades to a note, exactly as carryover does — it
@@ -450,7 +450,7 @@ fi
 # The deduplicated union of every phase spec's `## Mandatory commands` — the gate a tidy-up
 # must keep green, and what the security pass may run. A backtick-wrapped bullet yields only
 # the text inside the backticks, any other bullet loses a trailing " — …" / " – …" description
-# (tunez's "`npm run build` — vite build summary line; exit 0"). Same parse as preflight.sh's
+# (Tunez's "`npm run build` — vite build summary line; exit 0"). Same parse as preflight.sh's
 # cmd_bullets — change both together.
 : > "$tmp/commands"
 cmd_count=0
@@ -476,7 +476,7 @@ fi
 # --- {{CAPTURE_CMD}} (audit) ----------------------------------------------------------------
 # The design capture's command, which the polish phase records as `Capture command: <cmd>` in
 # its evidence file: the audit re-runs it so the owner's screenshots show the build after the
-# review, tidy-up and security fixes (tunez's tidy-up changed 9 screens after the capture). The
+# review, tidy-up and security fixes (Tunez's tidy-up changed 9 screens after the capture). The
 # highest phase that recorded one wins, and within a file the last line (its latest attempt).
 capture_cmd="none recorded"
 if [ "$mode" = "audit" ]; then

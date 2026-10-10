@@ -32,7 +32,7 @@ Exact phrases were considered and dropped (owner): a phrase the user has to reme
 and will be forgotten; putting the burden on the tool to confirm when unsure keeps the gates
 without it.
 
-**Why:** the first version asked for the whole package in one pass. On tunez that took about 30
+**Why:** the first version asked for the whole package in one pass. On Tunez that took about 30
 minutes, and a direction the owner disliked would have meant redrawing every screen. The owner's
 own workflow — several takes on one screen, pick, iterate, then build out — is what the stages
 encode; stage 4 exists because a built-out screen can still be wrong. The whole brief is pasted at
@@ -50,7 +50,7 @@ paste in a five-backtick fence.
 Never onboarding, settings, an error or empty state, a sheet or a modal; if the app opens onto a
 launcher that only routes to the main task, the task screen. Not the densest or most
 state-heavy screen: a direction chosen on the most representative screen transfers; one chosen on
-an outlier does not. For tunez: `live`.
+an outlier does not. For Tunez: `live`.
 
 ## The contract (what comes back)
 
@@ -80,13 +80,13 @@ export's contents there (or the .zip itself). On **design ready**, `prepare-desi
 lone zip, lifts the export's wrapper folder, drops `.DS_Store`/`__MACOSX` and commits `design/`,
 and only `design/`: anything else the user has staged stays staged. Relay never searches for the
 export elsewhere, because `~/Downloads` can hold several and a sandboxed session may not reach it.
-This is the one commit planning makes; it was the owner's by hand until the tunez test plan
+This is the one commit planning makes; it was the owner's by hand until the Tunez test plan
 showed it was pure friction. The same step also records the commit (`**Design:** design/HANDOFF.md @ <sha>` in `SPEC.md`), so the audit
 checks against the exact package the plan was made from.
 
 ## Adding screens to an app that already has a design
 
-A later run on an app relay built with a design stage finds `design/HANDOFF.md` already there.
+A later run on an app Relay built with a design stage finds `design/HANDOFF.md` already there.
 Three things used to go wrong:
 - the new export landed on top of the old package (`prepare-design.sh` only unpacks into a folder
   with no `HANDOFF.md`, so it was committed raw and the old package verified instead);
@@ -116,12 +116,12 @@ Rejected: merging the new screens into the old `HANDOFF.md` (a hand merge, and i
 record an earlier run audited against), and per-package id namespaces (a changed screen is the
 same screen; one marker per id stays true).
 
-## An app whose design is not a relay package
+## An app whose design is not a Relay package
 
-Most apps that predate relay have no `design/HANDOFF.md`. Their look lives in a design-tool
+Most apps that predate Relay have no `design/HANDOFF.md`. Their look lives in a design-tool
 export (`design_handoff_<app>/` with a README colour list, an HTML mockup, screenshots), a
 mockups folder, a DESIGN.md token table — or only in the code. Measured on one such app (a macOS
-app with a design export and an old planning folder committed beside the code): relay briefed
+app with a design export and an old planning folder committed beside the code): Relay briefed
 the designer for three fresh looks, and with a stand-in package of the app's seven colours
 `--verify tokens` failed a correct build 36 times — every colour "hard-coded" in the old README,
 the mockup, the old planning folder's specs and a test of the theme. In an unattended run that
@@ -134,7 +134,7 @@ missing wording pass `--verify copy`. So:
   real one. Detection only proposes — a name heuristic can be wrong, the owner cannot.
 - **Matching uses the addition brief**, filled from the reference's colour list and pictures, or,
   for a look only in the code (`theme`), from the theme file — and the owner shares screenshots
-  of the screens the new ones sit beside, since relay has none.
+  of the screens the new ones sit beside, since Relay has none.
 - **The checks skip the old material.** `check-design.sh --ignore <path>` leaves a folder or file
   out of the source, like `design/`; `--criteria` writes the flags into every Acceptance command,
   so the phases and the audit skip the same paths. Nothing is moved or edited.
@@ -160,7 +160,7 @@ antialiasing.
 **One checker, run by everyone.** Criteria 1–4 each name `<run-root>/check-design.sh design
 --verify <aspect> --except <run-root>/SPEC.md` (Stage 7 copies the script into the run), so the
 phases and the audit run the same deterministic command instead of hundreds of agent greps —
-the tunez package had 345 copy strings, 60 tokens and 29 components, and its planner invented a
+the Tunez package had 345 copy strings, 60 tokens and 29 components, and its planner invented a
 fidelity script of its own. Source is every tracked and untracked file outside `design/`,
 `.relay/` and the `--ignore` paths (above).
 
@@ -174,12 +174,12 @@ fidelity script of its own. Source is every tracked and untracked file outside `
    themed `light #… · dark #…` token is checked on both sides, and a value only matches when no
    hex digit follows it (`#FFF` is not found inside `#FFFDF8`). Platform colour values that must be literal — a
    web manifest, `<meta name="theme-color">` — are **generated from the theme file** and listed
-   with `--allow`; never hand-copied (tunez needed `#0D0F12` in both).
+   with `--allow`; never hand-copied (Tunez needed `#0D0F12` in both).
 4. **Copy matches** — every `## Copy` string appears verbatim outside `design/`; `{name}`
    placeholders split it into fragments, each of which must appear. Code comments are stripped
-   first — tunez's builders satisfied strings with JSDoc lines — but tests count: copy the app
+   first — Tunez's builders satisfied strings with JSDoc lines — but tests count: copy the app
    assembles from parts (a number in the middle, a bold word) is often whole only in the test
-   that checks the screen shows it, and skipping tests failed 39 strings tunez really shows.
+   that checks the screen shows it, and skipping tests failed 39 strings Tunez really shows.
    `(e.g. …)` examples on a copy bullet (`` `{key}` (e.g. `F major`) ``) are sample values, not
    wording, and are not checked. Each content phase checks its own screens with `--screen <id>`;
    the run-wide check stays on the last screen phase, Polish & Harden and the audit. A one-word fragment must
@@ -201,7 +201,7 @@ fidelity script of its own. Source is every tracked and untracked file outside `
    the product's source — a run's directory must never be baked into the code it builds.
    The polish phase records the one command that takes them (`Capture command: <command>` in its
    evidence file), and **the audit re-runs it** with the variable set: the review, tidy-up and
-   security fixes come after the polish phase and can change screens (tunez's tidy-up changed 9
+   security fixes come after the polish phase and can change screens (Tunez's tidy-up changed 9
    after the captures, and the owner was sent to compare the old pictures). A retake that fails,
    or a run with no recorded command, is never a gap — the run's last message says the
    screenshots may be out of date and gives the command.
@@ -213,7 +213,7 @@ criterion — tighten a list, drop a component the spec already covers — then 
 ## Reconciliation (step e)
 
 The design is drawn from the brief, not the spec, and a good designer makes decisions the spec
-never considered — or contradicts it. On tunez the planner found four real conflicts only by
+never considered — or contradicts it. On Tunez the planner found four real conflicts only by
 reading the whole handoff against the spec on its own initiative: tolerance changes retroactive
 (spec) vs frozen per take (design); a trend rule by slope vs by halves; a per-degree trend the
 design omitted; ≤ 80 ms latency vs a 10 Hz numeric readout. Planning against both would have
@@ -234,8 +234,8 @@ The brief's "The design must not" section (fix 14) is the cheap half of the same
 designer the hard limits up front, so fewer conflicts reach reconciliation.
 
 **Approved deviations (fix 25).** The owner often agrees to a better idea mid-session: the
-gated tunez design moved to other fonts, a different trend rule, light and dark themes. The
-tunez test plan then put all 12 conflicts to them one question at a time, re-asking choices they
+gated Tunez design moved to other fonts, a different trend rule, light and dark themes. The
+Tunez test plan then put all 12 conflicts to them one question at a time, re-asking choices they
 had made in the design session. So the brief asks the designer to keep a list of every departure
 the owner agreed to, and hand it back as `## Deviations from the brief`. Reconciliation still
 compares everything. Conflicts the list names are confirmed in one question ("apply all — design
@@ -260,10 +260,10 @@ tool) warns, and every conflict is asked individually, as before.
 ## Pictures vs the Copy list
 
 The designer hands back both the screen pictures and the typed `## Copy` list, and the build is
-held only to the list — relay never reads text out of an image. They usually agree; when they
+held only to the list — Relay never reads text out of an image. They usually agree; when they
 drift (a string left off the list, wording changed on screen after the list was written),
 nothing in the build would notice. So Stage 2.7d compares them once, while the owner is still
-there: one subagent opens every `screens/*.png` (keeping the images — 60 on tunez — out of the planner's window)
+there: one subagent opens every `screens/*.png` (keeping the images — 60 on Tunez — out of the planner's window)
 and reports, per screen, visible text missing from the list and wording that differs. Sample
 data in a picture (names, numbers, dates) is never required copy. The owner picks picture or list
 for each difference; the planner corrects `## Copy`, re-commits `design/` and only then drafts
@@ -274,11 +274,11 @@ dependency, and a misread string would fail a correct build at night with nobody
 
 - **The user already has a design.** Stage 1's third option, or `design ready` with no brief
   printed: skip straight to verification. The contract is the same.
-- **Brownfield with a design system but no package** (the app predates relay's design stage).
+- **Brownfield with a design system but no package** (the app predates Relay's design stage).
   Stage 1 asks whether to match the current look (`elsewhere:` candidates named in the question);
   the addition brief is filled from the confirmed reference or the theme file; the checks skip
   the reference and whatever `--overlap` shows is not the app's code ("An app whose design is not
-  a relay package", above). The tokens criterion names the existing theme file.
+  a Relay package", above). The tokens criterion names the existing theme file.
 - **The export lands in the wrong shape.** A lone `.zip` in `design/` is unzipped; a single
   wrapper folder (`design/design_handoff_tunez/HANDOFF.md`) is lifted. Two zips, two folders, or
   a name that already exists stop `prepare-design.sh` with a ❌ that names them — nothing moves.

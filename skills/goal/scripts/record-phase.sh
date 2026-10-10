@@ -552,7 +552,7 @@ if [ "$mode" = "phase" ] || [ "$mode" = "fix" ]; then
     if [ "$(count_block FAILURE_PROBE)" -ge 1 ]; then
       detail="$detail after one probe retry"
       # An in-window retry that worked is still a failure worth seeing: the STATE.md template
-      # promises one line per FAILURE_PROBE, and tunez's phase 10 retry was otherwise only in
+      # promises one line per FAILURE_PROBE, and Tunez's phase 10 retry was otherwise only in
       # run-report.py. section_add drops the template's placeholder and never adds a line twice.
       probed="$(field_after FAILURE_PROBE 'Failed criterion')"
       section_add "Failure log" "- Phase $phase ($name): ${probed:-unknown criterion} — attempt 1 failed — passed after the probe retry"
@@ -695,7 +695,7 @@ coverage_line() {
   re="${c% *}"; tp="${c#* }"
   # rounded down, so 100% only ever means nothing was taken on trust
   if [ $((re + tp)) -eq 0 ]; then share="nothing checked"; else share="$((re * 100 / (re + tp)))% re-verified"; fi
-  # What "re-verified" rested on (PHASE-BRIEF.md audit step 8): tunez read "100% re-verified"
+  # What "re-verified" rested on (PHASE-BRIEF.md audit step 8): Tunez read "100% re-verified"
   # while 146 of its 323 checks only confirmed a file exists. An audit that reports the split
   # gets it said in plain words; one that does not (older runs) prints exactly as before.
   cov="$(field_after AUDIT_COMPLETE 'Audit coverage')"
@@ -737,7 +737,7 @@ completion_lines() {
   if [ $((k + sk)) -gt 0 ]; then
     out="$out${nl}⚠ Unresolved: $k correctness/security finding(s) open, $sk check(s) skipped — see $findings"
   fi
-  # A [plan] bullet is a fix a check kept although it changed a line relay decided while planning
+  # A [plan] bullet is a fix a check kept although it changed a line Relay decided while planning
   # (PHASE-BRIEF.md §3b). The fix went in, so it is not "unresolved" — but the owner approved the
   # plan as written, so the run's last message must say it changed.
   if [ "$pc" -gt 0 ]; then
