@@ -2,13 +2,13 @@
 
 [![CI](https://github.com/mack5imal/relay/actions/workflows/ci.yml/badge.svg)](https://github.com/mack5imal/relay/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/mack5imal/relay)](https://github.com/mack5imal/relay/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Plan it with you, then build it without you.** 
+**Plan it with you, then build it without you.**\
 Relay is a Claude Code plugin that turns even a vague product, feature or other build request into finished, tested and audited code: careful planning with you up front, then autonomous work you don't have to watch. Define the spec, paste the command, then walk away. You return to a finished product.
 
-**Planning is a conversation.** 
+**Planning is a conversation.**\
 Bring a new product idea to an empty folder and Relay checks the tools on your machine, sets up git, and works out the stack and the shape of a first version with you. Point it at existing code and it reads the code first, so it doesn't ask what the code already answers. Either way, it then interviews you about everything only you can tell it: what "done" means, what's out of scope, the unusual situations to handle, and what the build must never do. Your answers become a written spec with measurable success criteria. Relay researches the unknowns with sources, then proposes a phased plan for you to review, change and approve. For UI work, Relay includes an optional stage that provides everything you need to design the front end in Claude Design or another design tool. Your time and attention during the planning phase are well rewarded: settling what to build up front is what lets the build run on its own.
 
-**The build runs unattended.** 
+**The build runs unattended.**\
 You paste one `/goal` line and walk away. Each phase is run by a subagent with its own dedicated context window, so a large build never runs out of context. Each phase verifies its own work and commits it to the run's own branch. Every phase also undergoes code review by a new subagent who didn't write the original, and failures are fixed on their own. When all phases are complete, Relay runs a code cleanup and a security review, and then fixes anything it finds. A final audit checks the result against the spec you agreed to, including the tests behind each success criterion. You come back to a branch of commits and a short report of anything Relay couldn't settle.
 
 ## What makes it different
@@ -77,7 +77,7 @@ Open Claude Code in your project and describe what you want:
 ```
 
 1. **Plan with Relay.** Answer the interview questions, approve the research questions, and review the plan. Relay shows the success criteria the run will be graded against, the assumptions it made and the risks it sees, and lets you change any phase before you start.
-2. **Paste one line.** Relay checks that your build and tests run, then prints a `/goal` line. Start a new Claude Code session in the same folder, switch it to auto mode, and paste the line. In the default mode, Claude Code asks before most edits and commands, and the run would wait at the first one..
+2. **Paste one line.** Relay checks that your build and tests run, then prints a `/goal` line. Start a new Claude Code session in the same folder, switch it to auto mode, and paste the line. In the default mode, Claude Code asks before most edits and commands, and the run would wait at the first one.
 3. **Walk away.** The run builds, checks and audits on its own. It ends with `RELAY_RUN_COMPLETE`: the branch, the audit result, anything left for you to look at, and the `git push` command when pushing is off.
 
 Options, added after the task:
@@ -145,7 +145,7 @@ Every finished phase is already committed, so a stop costs at most the phase in 
 - **Usage limits and API errors.** Leave the session open. Claude Code waits for a limit that resets within a day and retries dropped connections; the interrupted phase resumes automatically.
 - **A crash, a closed terminal or a restart.** Run `claude --resume` in the same folder, pick the run's session, and type `continue`. Relay works out whether the interrupted phase finished, is still running, or needs to run again.
 - **A goal that doesn't come back.** `bash .relay/<run-id>/resume-line.sh .relay/<run-id>` prints a fresh `/goal` line.
-- A blocked action. Auto mode occasionally refuses an action it judges risky. The run stops and explains; allow it or decide what to do, and it carries on.
+- **A blocked action.** Auto mode occasionally refuses an action it judges risky. The run stops and explains; allow it or decide what to do, and it carries on.
 - **A run that goes quiet.** Claude Code pauses idle check-ins after a while, so a stuck step can leave the run silent. Send any message; Relay checks the step and carries on.
 
 ## Git
