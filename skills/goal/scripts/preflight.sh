@@ -21,7 +21,7 @@
 #   package.json or without the named script, cargo/go/make/poetry/swift/mvn with no manifest, a
 #   script path that does not exist, check-design.sh --verify — is not run: it is listed as
 #   `- later <command> — <why>; first used by phase N` and never turns the block red. The list is
-#   fixed here, never chosen by the planner, so a broken baseline still shows as FAIL (the tunez
+#   fixed here, never chosen by the planner, so a broken baseline still shows as FAIL (the Tunez
 #   run's greenfield pre-flight was 13 of 16 red, and "skip pre-flight" became a planned step).
 #   Every other command runs once through run-logged.sh, its full output in
 #   <run-root>/logs/preflight/; the block shows the exit code and the last 5 lines of any that
@@ -102,7 +102,7 @@ fi
 
 # --- the commands ---------------------------------------------------------------------------
 # cmd_bullets — "<phase N><TAB><command>" for every `## Mandatory commands` bullet, in phase
-# order. A bullet is the command alone, but tunez's planner wrote "`npm run build` — vite build
+# order. A bullet is the command alone, but Tunez's planner wrote "`npm run build` — vite build
 # summary line; exit 0", which ran as command substitution plus `; exit 0` (a false pass): a
 # backtick-wrapped bullet yields only the text inside the backticks, any other bullet loses a
 # trailing " — …" / " – …" description. validate-phase.sh rejects both shapes in new specs.

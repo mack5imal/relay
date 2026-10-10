@@ -6,12 +6,12 @@
   fences), as the last message of its turn.
 
   Written for Claude Design (recommended), but it must read correctly to any design tool or a
-  human designer: no relay jargon, no S<k> ids, no run paths. The "What to hand back" section is
+  human designer: no Relay jargon, no S<k> ids, no run paths. The "What to hand back" section is
   fixed text — check-design.sh verifies exactly that contract when the user returns, so do not
   reword it. Required back: HANDOFF.md + one PNG per approved screen. Tokens, components and
   copy are asked for because each one becomes a build check; a package without them still
   passes, with warnings. "Deviations from the brief" lets Stage 2.7e confirm the departures the
-  owner already approved in one question instead of one each (the tunez test plan reconciled 12,
+  owner already approved in one question instead of one each (the Tunez test plan reconciled 12,
   most of them choices made in the design session).
 
   The four stages exist so the owner settles the look on ONE screen before anything else is

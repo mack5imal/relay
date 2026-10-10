@@ -81,7 +81,7 @@ This is the **correctness review of phase {{PHASE_N}}**. The phase passed its ow
 3. **Keep only what you can show.** Confirm each suspected defect — read the caller, trace the input, or run a quick command through `run-logged.sh` — and drop anything you cannot substantiate. A finding names `file:line`, what goes wrong, and when.
 4. Write `{{EVIDENCE_PATH}}` (format in §6).
 5. **No findings:** `REVIEW_CLEAN`. **Findings:** write `{{RUN_ROOT}}/phases/phase-{{PHASE_N}}.review-fix.md` — one numbered item per finding (`file:line`, the defect, the fix expected), a line forbidding changes outside those items, and phase {{PHASE_N}}'s acceptance criteria and mandatory commands as the gate that must still pass — then `REVIEW_FINDINGS`.
-6. **Defer a finding only when fixing it would break a phase criterion or go against the owner's call in the plan (§3b)** — a genuine conflict, never convenience or effort. Leave it out of the fix spec and append it to `{{RUN_ROOT}}/FINDINGS.md` (§6) as `deferred`, with the conflict as the reason (`contradicts the plan: "<the line>"` for a plan line); the owner decides. A fix that changes **relay's call** stays in the fix spec, with a `Changes the plan: "<the line>" (relay's call)` line on its item (§3b).
+6. **Defer a finding only when fixing it would break a phase criterion or go against the owner's call in the plan (§3b)** — a genuine conflict, never convenience or effort. Leave it out of the fix spec and append it to `{{RUN_ROOT}}/FINDINGS.md` (§6) as `deferred`, with the conflict as the reason (`contradicts the plan: "<the line>"` for a plan line); the owner decides. A fix that changes **Relay's call** stays in the fix spec, with a `Changes the plan: "<the line>" (relay's call)` line on its item (§3b).
 
 {{SPEC}}
 <!-- /mode -->
@@ -94,7 +94,7 @@ For each finding, in order:
 2. Re-run the gate's commands through `run-logged.sh`, plus whatever check proves the finding is fixed.
 3. **Green** → keep it. **Red, and you cannot get it green in this window** → undo that finding's changes (`git restore -- <file>` for a file only this finding touched; otherwise reverse your edit by hand), confirm the gate is green again, and record the finding as unresolved: under `Unresolved:` in your block, and appended to `{{RUN_ROOT}}/FINDINGS.md` (§6) as `unresolved` with why.
 
-An item with a `Changes the plan: "<line>"` line goes against something relay decided while planning. Keeping it is allowed — the fix spec chose it — but the owner must hear about it: when you keep it, append a `[plan]` bullet to `{{RUN_ROOT}}/FINDINGS.md` (§6) quoting that line. When you undo it, record it as unresolved like any other; the plan then stands as written.
+An item with a `Changes the plan: "<line>"` line goes against something Relay decided while planning. Keeping it is allowed — the fix spec chose it — but the owner must hear about it: when you keep it, append a `[plan]` bullet to `{{RUN_ROOT}}/FINDINGS.md` (§6) quoting that line. When you undo it, record it as unresolved like any other; the plan then stands as written.
 
 Then commit what you kept (§6). An unresolved finding never blocks the run: the run moves on, and `RELAY_RUN_COMPLETE` points the owner at `FINDINGS.md`.
 
@@ -118,7 +118,7 @@ This is the **tidy-up pass**. Every phase is built and committed. Before the aud
 - dead code the run added: unused functions, exports, branches, parameters, files;
 - a layer that adds nothing (a wrapper that only forwards).
 
-**Not a duplicate: a test's own reference calculation.** A test that computes its expected value independently of the code it checks (its own cents formula, its own parser, a hand-written table) is meant to repeat the production logic. Never replace it with a call to the production code — the test would then check the code against itself and pass whatever the code does (the tunez tidy-up made the accuracy test call production `centsBetween`).
+**Not a duplicate: a test's own reference calculation.** A test that computes its expected value independently of the code it checks (its own cents formula, its own parser, a hand-written table) is meant to repeat the production logic. Never replace it with a call to the production code — the test would then check the code against itself and pass whatever the code does (the Tunez tidy-up made the accuracy test call production `centsBetween`).
 
 **Fix now only if all five hold** — otherwise defer:
 
@@ -126,7 +126,7 @@ This is the **tidy-up pass**. Every phase is built and committed. Before the aud
 2. it changes no public interface, no user-visible behaviour or copy, and nothing a spec criterion names;
 3. existing tests or acceptance checks cover it, so the audit can prove behaviour was preserved;
 4. it is local — dedupe, delete, collapse, make consistent — not a redesign;
-5. it does not go against the owner's call in the plan (§3b). Going against **relay's** call is allowed: make it, and append a `[plan]` bullet to `FINDINGS.md` (§6) quoting the line.
+5. it does not go against the owner's call in the plan (§3b). Going against **Relay's** call is allowed: make it, and append a `[plan]` bullet to `FINDINGS.md` (§6) quoting the line.
 
 A deferred finding goes to `{{RUN_ROOT}}/FINDINGS.md` (§6) as `[cleanup] … — deferred: <which rule it fails> — next: <suggested move>`. The reason is mandatory.
 
@@ -160,7 +160,7 @@ This is the **security pass**: one read-only review of everything this run chang
 2. Work one file at a time, as in §6 — never the whole footprint's diff at once.
 3. **Keep only what you can show:** the input, the path it takes, and what it reaches. Drop what you cannot substantiate.
 4. Write `{{EVIDENCE_PATH}}` (format in §6).
-5. **No findings:** `SECURITY_CLEAN`. **Findings:** write `{{RUN_ROOT}}/phases/security-fix.md` — one numbered item per finding (`file:line`, the flaw, the fix expected), a line forbidding changes outside them, and the commands below as the gate — then `SECURITY_FINDINGS`. Defer a finding to `FINDINGS.md` only when fixing it would break a spec criterion or go against the owner's call in the plan (§3b), with that conflict as the reason (`contradicts the plan: "<the line>"`). A fix that changes **relay's call** stays in the fix spec, with a `Changes the plan: "<the line>" (relay's call)` line on its item — a real flaw is fixed, and the owner is told.
+5. **No findings:** `SECURITY_CLEAN`. **Findings:** write `{{RUN_ROOT}}/phases/security-fix.md` — one numbered item per finding (`file:line`, the flaw, the fix expected), a line forbidding changes outside them, and the commands below as the gate — then `SECURITY_FINDINGS`. Defer a finding to `FINDINGS.md` only when fixing it would break a spec criterion or go against the owner's call in the plan (§3b), with that conflict as the reason (`contradicts the plan: "<the line>"`). A fix that changes **Relay's call** stays in the fix spec, with a `Changes the plan: "<the line>" (relay's call)` line on its item — a real flaw is fixed, and the owner is told.
 
 You may run these to confirm a finding; you change nothing:
 
@@ -204,7 +204,7 @@ treat a phase's acceptance criteria as a substitute — they are the compilation
 
 Who decided the line decides what happens:
 
-- **Relay's call** — anything tagged `(planner)`: an `Out of scope` or `Constraints` bullet ending `(planner)`, or a value in a success criterion followed by `(planner)` ("within 150 ms (planner)" — the value is relay's, the rest of the criterion stays the owner's); and every `Assumptions` bullet. Nobody asked the owner; relay chose while planning. A fix may change it: make the fix, and flag it as a `[plan]` bullet in `FINDINGS.md` so the run's last message says so.
+- **Relay's call** — anything tagged `(planner)`: an `Out of scope` or `Constraints` bullet ending `(planner)`, or a value in a success criterion followed by `(planner)` ("within 150 ms (planner)" — the value is Relay's, the rest of the criterion stays the owner's); and every `Assumptions` bullet. Nobody asked the owner; Relay chose while planning. A fix may change it: make the fix, and flag it as a `[plan]` bullet in `FINDINGS.md` so the run's last message says so.
 - **The owner's call** — everything else: success criteria (apart from a `(planner)` value), prohibitions, in scope, constraints and `Out of scope` bullets without `(planner)`. A fix never overrides it: defer the finding with the reason `contradicts the plan: "<the line>"`, and the owner decides.
 
 {{SPEC_PLAN}}
@@ -244,7 +244,7 @@ Excerpt of `{{RUN_ROOT}}/STATE.md` at dispatch time — the latest engineering c
 **Context hygiene.** Everything a tool returns stays in your window until you finish:
 
 - **Read this brief once.** Do not re-open it; `grep` it for a section if you need to check one.
-- **Check a file's length before you open it** (`wc -l <file>`). Over 150 lines, read it by range: `grep -n` for the symbol, then the Read tool with `offset`/`limit`. Start from the code map's `file:line` pointers (§4). Read a whole file only when you are about to rewrite most of it, and never `cat` one — source, test, fixture or doc. (tunez's phases made 13–15 whole-file Reads each and peaked at 276–330k tokens.)
+- **Check a file's length before you open it** (`wc -l <file>`). Over 150 lines, read it by range: `grep -n` for the symbol, then the Read tool with `offset`/`limit`. Start from the code map's `file:line` pointers (§4). Read a whole file only when you are about to rewrite most of it, and never `cat` one — source, test, fixture or doc. (Tunez's phases made 13–15 whole-file Reads each and peaked at 276–330k tokens.)
 - **Planner docs and earlier evidence files:** read only the sections your spec cites — `grep -n '^#'` the file for headings, then read that range. Earlier phases' evidence files: `grep`/`tail` only.
 - **Design package (the one your spec cites — `design/`, or `design/<feature>/` when this run adds screens to an app that already had a design):** read its `HANDOFF.md` by section — the `### <id>` block for the screen you are building, plus `## Design tokens` / `## Components` / `## Copy` when your spec cites them. Open a screen's PNG only while building that screen. An earlier package beside it describes the existing screens: open it only for a screen your spec names. Never read any package's `source/`: it is the designer's working files, large, and not something to port.
 - **Never read `tool-results/` or `tasks/*.output` files.** They hold output too large to show you, and reading them puts that output back in your window. Re-run the command through `run-logged.sh` and `grep` its log instead.
@@ -400,7 +400,7 @@ Outcome: <to fix | fixed | deferred: <reason> | unresolved: <why>>
 - [plan] <file:line> — <what the fix changed> — changed: plan said "<the line, quoted>" — next: keep it, or revert <the fix's commit or file>
 ```
 
-The reason is mandatory. A fixed finding does not go here — it is in the evidence file and the commit — **except** a fix that changed relay's call in the plan (§3b): that one gets a `[plan]` bullet, written by the window that kept the fix (the fix window, or the tidy-up). A fix window appends under its check's heading (`## Review — phase <N>` or `## Security`).
+The reason is mandatory. A fixed finding does not go here — it is in the evidence file and the commit — **except** a fix that changed Relay's call in the plan (§3b): that one gets a `[plan]` bullet, written by the window that kept the fix (the fix window, or the tidy-up). A fix window appends under its check's heading (`## Review — phase <N>` or `## Security`).
 
 <!-- /mode -->
 <!-- mode: review security -->

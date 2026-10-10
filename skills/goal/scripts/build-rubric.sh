@@ -68,7 +68,7 @@ tmp="$(mktemp)"; trap 'rm -f "$tmp" "$tmp".*' EXIT
 #   C <n> <flag> <criterion>              — one per acceptance criterion (flag: "", human, outside)
 extract() {
   awk -v n="$1" '
-    # The prose and the backticked spans are judged apart (tunez: 6 of 7 flags were words inside
+    # The prose and the backticked spans are judged apart (Tunez: 6 of 7 flags were words inside
     # commands — a URL in a grep regex, `vercel deploy` as text DEPLOY.md must contain, the
     # `curl http://localhost` of a local preview). Prose words flag on their own; a span flags
     # only when it is a command that reaches outside the repo AND the criterion runs it — not

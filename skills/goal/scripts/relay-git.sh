@@ -3,7 +3,7 @@
 # commits, and the one push after the audit.
 #
 # Why: a run used to leave its work uncommitted unless the planner happened to write a commit
-# bullet into a phase spec (contextmeter did; tunez said "do not commit"). Relay now commits at
+# bullet into a phase spec (contextmeter did; Tunez said "do not commit"). Relay now commits at
 # the verified boundary itself — one commit per phase, per fix window and per audit-fix round —
 # which the cleanup pass needs for per-phase diffs. The git logic lives here, in one tested
 # place, rather than as prose each subagent re-derives.
@@ -25,7 +25,7 @@
 #   or untracked, is the owner's work and would be swept into phase 1's commit (and counted as
 #   run changes by repo-state.sh). It honours .gitignore, and the run root itself never counts
 #   (left out by path, whether or not claim-run.sh's info/exclude entry hides it). Also reports the branch plan and warns (never blocks) about commit
-#   signing and, when relay will push, an unreachable remote — with STATE.md's **Push:** off the
+#   signing and, when Relay will push, an unreachable remote — with STATE.md's **Push:** off the
 #   remote is never contacted. Exit 0 = OK (or no git), 1 = dirty.
 # branch — on the default branch (the remote's HEAD, init.defaultBranch, main or master),
 #   a detached HEAD or an unborn branch, creates and switches to relay/<run-id>; on any other
@@ -46,7 +46,7 @@
 #   committed and the subagent treats it like a failed criterion. Exit 4: HEAD is not on the
 #   branch STATE.md's **Branch:** names (a resumed run after the owner switched) — nothing is
 #   committed. Never amends, pushes or switches branch.
-# push — pushes the run branch only when relay created it (STATE.md's **Branch:** says so) and
+# push — pushes the run branch only when Relay created it (STATE.md's **Branch:** says so) and
 #   STATE.md's **Push:** is on: `git push -u <remote> <branch>`, never --force, never the
 #   owner's branch. **Push:** off (the default since 0.11) prints `push: skipped — push is off
 #   for this run; run: <command>`; a missing field (runs planned before 0.11) pushes. A failed push must
@@ -66,11 +66,11 @@
 #   it. Without --save nothing is committed (`branch` makes the empty first commit). Exit 1 when
 #   it is already a repository, or git refused the commit (the reason and fix are printed).
 # remote — adds origin for the GitHub repo <owner/name> through `gh`: --create makes it first,
-#   always `--private` (relay never creates a public repo); --connect uses an existing one.
+#   always `--private` (Relay never creates a public repo); --connect uses an existing one.
 #   HTTPS or SSH follows `gh config get git_protocol`. **Never pushes** — the run's one push
 #   comes after the audit, with Push: on. Exit 1 when origin exists, gh is missing, or gh fails.
 #
-# Every subcommand without git (not a repository) prints a note and exits 0 — relay then never
+# Every subcommand without git (not a repository) prints a note and exits 0 — Relay then never
 # commits. Exit 2 is a usage error. Copied into the run's <run-root>/ at Stage 7.
 
 set -uo pipefail
@@ -293,7 +293,7 @@ branch)
       || { echo "relay-git.sh: could not create $run_branch: $err" >&2; exit 1; }
   fi
   # A repository with no commits has no baseline to compare the run against: give it an empty
-  # first commit on the run branch (hooks and signing apply, as for every relay commit).
+  # first commit on the run branch (hooks and signing apply, as for every Relay commit).
   if ! has_head; then
     msg="$(mktemp)"; printf 'relay: start %s\n\nRelay-Run: %s\n' "$runid" "$runid" > "$msg"
     err="$(git commit -q --allow-empty -F "$msg" 2>&1 </dev/null)"; rc=$?; rm -f "$msg"
@@ -318,7 +318,7 @@ commit)
 
   # The run's commits belong on the branch STATE.md records. A resumed run can find HEAD
   # elsewhere (the owner checked out main to look into a handoff): committing there would put
-  # relay's work on a branch nobody asked for and leave the pushed run branch without it.
+  # Relay's work on a branch nobody asked for and leave the pushed run branch without it.
   want="$(state_field Branch)"; want="${want%% *}"
   case "$want" in ""|"—"|"-"|no-git|"{{BRANCH}}") want="" ;; esac
   cur="$(current_branch)"
@@ -329,7 +329,7 @@ commit)
 
   if [ -n "$phase" ]; then
     # The phase spec's `Phase:` line names the phase; the STATE.md row is only a fallback. A phase
-    # renamed mid-run keeps its old row name (tunez: phase 18 committed as "Deploy a Vercel
+    # renamed mid-run keeps its old row name (Tunez: phase 18 committed as "Deploy a Vercel
     # preview" after the deploy was taken out of its spec).
     name="$(grep -m1 -E '^[[:space:]]*Phase:[[:space:]]*[0-9]+' "$runroot/phases/phase-$phase.md" 2>/dev/null \
       | sed -E 's/^[[:space:]]*Phase:[[:space:]]*[0-9]+([[:space:]]+of[[:space:]]+[0-9]+)?[[:space:]]*[—-]+[[:space:]]*//; s/[[:space:]]+$//')"
@@ -389,7 +389,7 @@ commit)
   fi
 
   # Already tracked, so the owner chose to keep it in git: warn, don't refuse — but its new
-  # contents are in this commit, and a relay branch with push on is pushed after the audit.
+  # contents are in this commit, and a Relay branch with push on is pushed after the audit.
   while IFS= read -r f; do
     [ -n "$f" ] && echo "commit: ⚠ $f is tracked and looks like a secret or generated file — this commit includes its changes"
   done < <(git diff --cached --name-only --no-renames --diff-filter=M 2>/dev/null | secret_or_generated)
@@ -586,7 +586,7 @@ remote)
   command -v gh >/dev/null 2>&1 || { echo "remote: gh is not installed — install it (https://cli.github.com) and run: ! gh auth login"; exit 1; }
   out="$(mktemp)"
   if [ "$mode" = "--create" ]; then
-    # Always private: relay never creates a public repository. No --push, no --source.
+    # Always private: Relay never creates a public repository. No --push, no --source.
     if ! with_timeout 60 "$out" gh repo create "$name" --private; then
       echo "remote: gh repo create failed — $(grep -v '^[[:space:]]*$' "$out" | tail -1 | cut -c1-160)"; rm -f "$out"; exit 1
     fi

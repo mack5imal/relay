@@ -28,7 +28,7 @@
 #
 # design/ must also be committed: repo-state.sh counts every untracked file as a change the run
 # made and greps it for debug output, so an uncommitted export would fail cleanliness checks.
-# The planner commits it with prepare-design.sh (Stage 2.7d, fix 30) — the one thing relay
+# The planner commits it with prepare-design.sh (Stage 2.7d, fix 30) — the one thing Relay
 # commits during planning; this only checks.
 #
 # --criteria  after a clean check, print SPEC.md success criteria for the package (S<k>
@@ -54,20 +54,20 @@
 #                          theme's values)
 #              copy        each §Copy string, split on {name} placeholders, has every fragment of
 #                          3+ characters present verbatim, a one-word fragment as a whole word —
-#                          outside code comments: comments are stripped first (tunez's builders
+#                          outside code comments: comments are stripped first (Tunez's builders
 #                          planted strings in JSDoc to pass it). Tests still count — a test that
 #                          checks the screen shows the words is real evidence, and copy the app
-#                          assembles from parts is often verbatim only there (tunez: skipping
+#                          assembles from parts is often verbatim only there (Tunez: skipping
 #                          tests failed 39 strings the app does show). `(e.g. …)` examples on a
 #                          copy bullet are sample values, never required.
 #                          --screen <id> (repeatable) checks only the strings under `### <id>` in
 #                          §Copy, so the phase that builds a screen gates its own copy instead of
-#                          the last screen phase inheriting every earlier miss (tunez: 58).
+#                          the last screen phase inheriting every earlier miss (Tunez: 58).
 #            --except reads SPEC.md's `## Design reconciliation` rows resolved "spec wins" and
 #            exempts the `screen:` / `component:` / `token:` / `copy:` item each names.
 #
 # --ignore   (repeatable, a path from the project root) leave this folder or file out of the
-#            source, like design/: the app's earlier design when it is not a relay package
+#            source, like design/: the app's earlier design when it is not a Relay package
 #            (a design-tool export, a mockups folder, a DESIGN.md token table — design-dir.sh's
 #            `elsewhere:` lines) and old planning or run folders. Their colour lists and wording
 #            would otherwise read as the app's code: a colour in an old README fails the token
@@ -155,7 +155,7 @@ has_section() { grep -qiE "^##[[:space:]]+$1[[:space:]]*$" "$handoff"; }
 # table_rows — the body rows of every markdown table on stdin. Each table's first row (its
 # header) and every separator row are skipped, and the count restarts at any non-table line, so
 # a section holding several tables (Colour, Type, Space…) never reads a later header as a row
-# (fix 20: the tunez package's second and third `| name | value | usage |` became tokens).
+# (fix 20: the Tunez package's second and third `| name | value | usage |` became tokens).
 table_rows() {
   awk '
     /^[[:space:]]*\|/ {
@@ -429,7 +429,7 @@ if [[ -n "$verify" ]]; then
 
   if [[ "$verify" == copy || "$verify" == all ]]; then
     # Copy is matched with comments stripped, so a string planted in a JSDoc line no longer
-    # passes (tunez: `Yesterday · …` lived only in a comment). Tests are kept: a test asserting
+    # passes (Tunez: `Yesterday · …` lived only in a comment). Tests are kept: a test asserting
     # the rendered text is evidence, and text assembled from parts is often whole only there.
     # Screens / components / tokens keep the raw source — a `design: <id>` marker is itself a
     # comment. Stripped: block comments (JSX `{/* */}`

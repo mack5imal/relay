@@ -83,7 +83,7 @@ SHAPE_EDGES = {
 # Deliberately conservative: a shape is claimed only on an explicit signal. Over-claiming a
 # shape raises edges that do not apply, which trains the reader to dismiss rows unread.
 #
-# The tunez run (22 criteria) showed what over-claiming looks like: 136 edges, ~77% of all
+# The Tunez run (22 criteria) showed what over-claiming looks like: 136 edges, ~77% of all
 # (criterion, category) pairs, a third of them dismissed as nonsense. The triggers were generic
 # words -- "each", "every", "state", "name", "input", "message", "reads", "dB", "over" /
 # "under" as prepositions, "command" -- and file names inside commands (`latency.json` raised

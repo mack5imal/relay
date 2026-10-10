@@ -63,7 +63,7 @@ phases (the tokens aspect is the exception — it can gate the tokens phase itse
 gated per screen:** each content phase carries `check-design.sh design --verify copy --screen
 <id> --except <run-root>/SPEC.md` (one `--screen` per screen it builds) as an acceptance
 criterion and a mandatory command, so a screen's wording is checked by the phase that wrote it.
-tunez gated all 14 screens' copy in one phase, which inherited 58 misses from the phases before
+Tunez gated all 14 screens' copy in one phase, which inherited 58 misses from the phases before
 it and spent its window repairing their screens.
 
 **Adding screens to an app that already has a design** (the package is `design/<feature>/`): the
@@ -92,7 +92,7 @@ Good:
 - `<SignInForm/>` renders without console errors
 - Authenticated middleware rejects requests without a session cookie
 
-## Git is relay's job, not the spec's
+## Git is Relay's job, not the spec's
 
 Relay commits each phase itself: the phase subagent runs `relay-git.sh commit` as the last step of a passing verify (`PHASE-BRIEF.md` §6), a fix window commits on its success, and an audit-fix window commits its round. Stage 7 puts the run on a `relay/<run-id>` branch when it started on the default branch, and, when `STATE.md` says `Push: on`, the orchestrator pushes that branch once after the audit — never the user's own branch, and a failed push is reported, never a blocker. Push is off by default; then the branch stays local and the run's last message gives the command. So a phase spec carries **no** commit, branch, or push bullets and no acceptance criterion about commits: a planner-written "commit as `Phase 2: …`" makes two commits per phase, and "do not commit" contradicts the brief. The one exception is a push the task is *about* (a deploy that works by `git push`), written only when `SPEC.md` asks for it.
 
@@ -161,8 +161,8 @@ Every phase executes cold in its own subagent window, from a brief. A phase that
 
 - Estimate it per phase and write `Estimated files: <n>` in the spec header.
 - **Over 12 → split.** Natural seams: a layer (types and schemas vs. behavior), a surface (one screen, then the next), a caller cluster in a migration (move one group, then the next), or setup vs. use (add the dependency and config, then build on it).
-- **No clean seam → keep it and say why**: `Estimated files: 14 — <why it can't split>`. A split at a false seam costs more than a large phase — the tunez plan's phase 1 dropped its shared test setup to fit the old limit of 8, so every later test file imports its matchers by hand.
-- The limit was 8 until the tunez test plan (fix 28). That number was set before any subagent window had been measured, and the measurements since show file count is a weak predictor (below). 12 is a working default; recalibrate from the full run's per-phase peak windows. `validate-phase.sh` warns above the threshold without a reason (`RELAY_PHASE_FILE_LIMIT` overrides it).
+- **No clean seam → keep it and say why**: `Estimated files: 14 — <why it can't split>`. A split at a false seam costs more than a large phase — the Tunez plan's phase 1 dropped its shared test setup to fit the old limit of 8, so every later test file imports its matchers by hand.
+- The limit was 8 until the Tunez test plan (fix 28). That number was set before any subagent window had been measured, and the measurements since show file count is a weak predictor (below). 12 is a working default; recalibrate from the full run's per-phase peak windows. `validate-phase.sh` warns above the threshold without a reason (`RELAY_PHASE_FILE_LIMIT` overrides it).
 
 **Reads, not writes, set the window size.** `Estimated files:` counts what a phase writes, but a cold executor's window fills with what it reads. In the first end-to-end run (contextmeter, 7 phases) subagent windows peaked at 109k–256k tokens; phase 7 changed 2 files and still peaked at 256k, almost all of it whole-file reads of source, tests, fixture docs, and earlier evidence. So when you size a phase, also ask what it must *read*:
 
@@ -191,7 +191,7 @@ exact:
 
 - **Pin the target.** Name the team or scope and the project in the command itself —
   `vercel link --yes --project <name> --scope <team>`, then `vercel deploy --prod --scope <team>`.
-  Never rely on the CLI's default scope; the tunez account's default team held five unrelated
+  Never rely on the CLI's default scope; the Tunez account's default team held five unrelated
   projects.
 - **Say what must not change.** One criterion: no other project in that scope is created,
   linked or redeployed (e.g. `vercel project ls --scope <team>` lists the same projects plus
@@ -212,7 +212,7 @@ Three checks run in their own subagents around the build. None of them can block
 
 **Security pass (`Security pass:` in `STATE.md`).** `yes` when the build touches any of: network or HTTP (servers, clients, webhooks), authentication or authorisation, user-supplied input, file paths, shell or process execution, secrets or credentials, deserialisation of untrusted data, or new dependencies. `skip — <reason>` otherwise (`skip — styling and copy only`). When in doubt, run it: it is one read-only window. It looks for gaps only visible across phases, such as a route a later phase added without the auth check the earlier routes have.
 
-**Push (`Push:` in `STATE.md`).** `off — default` unless the user chose otherwise: `--push` / `--no-push` for this run, or `RELAY_PUSH=on|off` as their standing default (the flag wins). A push is the one outward-facing, hard-to-undo thing a run does — it can trigger CI, deploy previews and team notifications, and it publishes code nobody has reviewed — and it happens unattended, so it is opt-in. Off, `relay-git.sh push` prints the command for the user instead. It never applies to the user's own branch, which relay never pushes.
+**Push (`Push:` in `STATE.md`).** `off — default` unless the user chose otherwise: `--push` / `--no-push` for this run, or `RELAY_PUSH=on|off` as their standing default (the flag wins). A push is the one outward-facing, hard-to-undo thing a run does — it can trigger CI, deploy previews and team notifications, and it publishes code nobody has reviewed — and it happens unattended, so it is opt-in. Off, `relay-git.sh push` prints the command for the user instead. It never applies to the user's own branch, which Relay never pushes.
 
 **`--lean`** turns all three off (`Review: skip — --lean`, `Cleanup: off — --lean`, `Security pass: skip — --lean`). The security assessment is still made, so Stage 6 can warn when a lean build touches a security surface.
 

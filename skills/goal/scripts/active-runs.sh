@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# active-runs.sh — list the relay runs in this working tree that are not COMPLETE (Stage 0).
+# active-runs.sh — list the Relay runs in this working tree that are not COMPLETE (Stage 0).
 #
 # Usage: active-runs.sh [<relay-base>]     (default: $RELAY_BASE, else .relay)
 #
