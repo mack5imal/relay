@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] — 2026-10-10 (Relay)
 
 First public release. These are the changes since 0.11.0; most of them come from two long test
-builds of a web app (a 19-phase new app, then a 24-phase feature for it), called tunez below.
+builds of a web app (a 19-phase new app, then a 24-phase feature for it), called Tunez below.
 
 ### Added
 
@@ -37,7 +37,7 @@ builds of a web app (a 19-phase new app, then a 24-phase feature for it), called
   A judgment call is noted in `FINDINGS.md` and never blocks the run. Promised files must also
   be real (not placeholders) and used by something.
 - **The coverage line says what "re-verified" rested on**: how many success criteria had their
-  tests inspected, and how many checks only confirmed a file exists. tunez read "100%
+  tests inspected, and how many checks only confirmed a file exists. Tunez read "100%
   re-verified" while 146 of its 323 checks were file-exists checks.
 - **The planner checks the design pictures against the typed wording.** The designer hands
   back screen pictures and a typed list of every piece of text, and the build was held only to
@@ -80,29 +80,29 @@ builds of a web app (a 19-phase new app, then a 24-phase feature for it), called
   says to check the log instead.
 - **Builders check a file's length before opening it.** Over 150 lines, they read the part they
   need. `tools/check-run.py` now warns on more than five whole-file reads in a window and on
-  long command output that skipped the log. tunez's windows made up to 15 whole-file reads each.
+  long command output that skipped the log. Tunez's windows made up to 15 whole-file reads each.
 - **Each screen's wording is checked by the phase that builds it** (`check-design.sh --verify
   copy --screen <id>`), instead of one late phase inheriting every earlier screen's misses (58
-  on tunez). Text found only in a code comment no longer counts — builders had satisfied the
+  on Tunez). Text found only in a code comment no longer counts — builders had satisfied the
   check with JSDoc lines — and `(e.g. …)` examples in the design's copy list are no longer
   required wording.
 - **Fewer, better edge-case prompts.** The planner's edge probe raised "unusual situation"
   prompts from generic words ("each", "state", "name") and from file names inside commands —
-  136 prompts on tunez's 22 criteria, a third of them nonsense like "unusual characters" on a
+  136 prompts on Tunez's 22 criteria, a third of them nonsense like "unusual characters" on a
   latency target because of `latency.json`. It now reads only the criterion's prose and only
   words that name the situation: 78 on the same criteria, with the real ones it used to miss
   (`≥ 99%`, `±35¢`, sharp/flat note spelling) now raised.
 - **The rubric flags only what needs you.** "Worth your eye" flagged commands quoted inside a
   criterion — a URL in a `grep` pattern, `vercel deploy` as text a doc must contain, a `curl` to
   `localhost` — and "stopped manually" in an automated test. Commands now flag only when the
-  criterion runs them and they leave the repository (tunez: 7 flags, all false → 0).
+  criterion runs them and they leave the repository (Tunez: 7 flags, all false → 0).
 - **Numbers the planner picks are marked as its own.** A limit or count the planner fills in
   while settling an edge case is written `within 150 ms (planner)` and listed in the plan review
   under "Numbers I chose". Untagged, it read as something you had agreed, and the checks after
   the build could never change it.
 - **Each phase's deliverables are file paths.** The plan's `Deliverables:` lists must name the
   files or globs a phase creates (`validate-phase.sh --roadmap`), so the audit can check each
-  one; tunez's plan pointed at the phase specs instead, and the audit rebuilt 146 paths from
+  one; Tunez's plan pointed at the phase specs instead, and the audit rebuilt 146 paths from
   prose.
 - **The handoff no longer tells you to exit the planning session.** It says to start a new
   session in the same folder and paste the `/goal` line there; the planning session can stay
@@ -116,7 +116,7 @@ builds of a web app (a 19-phase new app, then a 24-phase feature for it), called
   round 6, each round ends with "Write SPEC.md / Keep going / Write it and flag the gaps"; when
   the score passes, the next question shows it.
 - **The plan summary's numbers match the plan.** Counts (criteria worth a human look, screens,
-  components) are copied from the scripts' output instead of counted by hand; the tunez summary
+  components) are copied from the scripts' output instead of counted by hand; the Tunez summary
   disagreed with its own rubric and spec.
 - **A phase that passed after a retry shows in the failure log.** Only escalations were logged.
 - **No more doubled labels** in the closing message and check blocks (`Push: push: …`,
@@ -125,7 +125,7 @@ builds of a web app (a 19-phase new app, then a 24-phase feature for it), called
   an `echo ====`), and every script that piped into `grep -q` reads its whole input, so a long
   input can no longer turn a match into a miss.
 - **The design screenshots you compare after a run show the finished build.** The polish
-  phase took them, and the review, tidy-up and security fixes ran afterwards; on the tunez run
+  phase took them, and the review, tidy-up and security fixes ran afterwards; on the Tunez run
   the tidy-up changed 9 screens, so the owner was sent to compare outdated pictures. The polish
   phase now records the one command that takes them, and the final audit runs it again. When
   the retake can't run, the run still finishes, and its last message says the screenshots may be
@@ -139,20 +139,20 @@ builds of a web app (a 19-phase new app, then a 24-phase feature for it), called
   anything you answered, a constraint, a prohibition or an outward-facing target (where and as
   whom something deploys, a remote, anything pushed) is a question — "you said X; I found Y; I
   propose Z" — never an assumption or a quiet spec edit, and the plan summary lists every such
-  change. On the tunez run the planner moved the deploy from the personal scope chosen in the
+  change. On the Tunez run the planner moved the deploy from the personal scope chosen in the
   interview to a team scope with five live projects, loosened a licence constraint, and pushed
   the owner's `main` when asked for a repo.
 - **Every question is in plain language.** Each question leads with what you will see, get or
   risk under each answer, then a recommendation; method names and statistics terms come after,
   if at all. "Edges" are explained wherever they appear ("unusual situations around each goal
   that the final check only tests if they're written down") and named as situations. Several
-  tunez questions needed a lookup to answer.
+  Tunez questions needed a lookup to answer.
 - **Subagent briefs no longer grow with every memory the run saves.** Each window used to get
-  every memory in full. On the tunez run that was 30 memories (51 KB), so phase briefs grew
+  every memory in full. On the Tunez run that was 30 memories (51 KB), so phase briefs grew
   from 28 KB to 85 KB, check briefs reached about 100 KB, and from phase 13 on the first Read
   of every brief came back cut short. Now a phase gets the memories of the phases it depends on
   in full (up to 12 KB, nearest first), and every other memory as a one-line index it can open.
-  Review, tidy-up, security and audit windows get the index only. Rebuilt from tunez's own
+  Review, tidy-up, security and audit windows get the index only. Rebuilt from Tunez's own
   memories, phase 19's brief is 50 KB instead of 83 KB and the audit's 45 KB instead of 92 KB.
   `STATE.md`'s carryover lines now record the phase that wrote each memory, and every brief
   states its length so a Read that stops early is resumed.
@@ -160,7 +160,7 @@ builds of a web app (a 19-phase new app, then a 24-phase feature for it), called
   build creates — no `package.json` yet or no such script in it, no `Cargo.toml` / `go.mod` /
   `Makefile`, a script file that doesn't exist yet, `check-design.sh --verify` — is listed as
   *not runnable yet* with the phase that first uses it, instead of failing. The list is fixed in
-  the script, so a broken baseline is still red. On the tunez run, 13 of 16 commands were red
+  the script, so a broken baseline is still red. On the Tunez run, 13 of 16 commands were red
   before phase 1 and "skip pre-flight" became part of the plan.
 - A `## Mandatory commands` bullet with a description after the command no longer runs the
   description. `` `npm run build` — summary; exit 0 `` ran as command substitution plus
@@ -170,7 +170,7 @@ builds of a web app (a 19-phase new app, then a 24-phase feature for it), called
 - `check-design.sh` no longer reports an existing screen heading as missing. With a large
   `## Screens` section, `grep -q` stopped reading at its first match, the section writer died of
   SIGPIPE, and `pipefail` turned the found heading into "no '### <id>' heading" — at random,
-  including inside `--verify`, which the design-fidelity criteria run. Found by the tunez run.
+  including inside `--verify`, which the design-fidelity criteria run. Found by the Tunez run.
 
 ## [0.11.0] — 2026-10-07 (Relay)
 
