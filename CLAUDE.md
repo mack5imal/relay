@@ -141,7 +141,7 @@ provenance/credit lines is a bug.
 
 ### Version bumping
 
-Source of truth is `.claude-plugin/plugin.json`'s `version`. It must match README's "Current: v…"
+Source of truth is `.claude-plugin/plugin.json`'s `version`. It must match README's "Current version: **v…**"
 line, the top `CHANGELOG.md` entry, and the "Working state (as of vX.Y.Z — …)" line in `AGENTS.md`.
 Relay continues upstream's version line (first Relay release is 0.8.0). Tag the same number:
 `git tag -a v0.8.x -m "..." && git push origin v0.8.x`.
