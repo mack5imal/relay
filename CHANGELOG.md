@@ -5,11 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] (relay)
+## [1.0.0] — 2026-10-10 (Relay)
+
+First public release. These are the changes since 0.11.0; most of them come from two long test
+builds of a web app (a 19-phase new app, then a 24-phase feature for it), called tunez below.
 
 ### Added
 
-- **Apps whose design isn't a relay package.** Most existing apps keep their design somewhere
+- **Apps whose design isn't a Relay package.** Most existing apps keep their design somewhere
   else — a design-tool export, a mockups folder, a style doc with a colour table — or only in
   their code. Relay now finds likely design folders, names them in the design question, and
   asks whether the new screens should match the current look. Matching gets the brief for adding
@@ -17,9 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   got the new-app brief (three fresh looks), and the build's design checks read the old
   material as app code: on one app a correct build failed the colour check 36 times, and old
   mockups made missing wording pass. The checks now skip the confirmed design, and before the
-  plan is drafted relay lists every file that already holds the design's colours or wording, so
+  plan is drafted Relay lists every file that already holds the design's colours or wording, so
   old docs and planning folders are skipped too. Nothing is moved or edited.
-
 - **Adding screens to an app that already has a design.** When the app already has a design
   package from an earlier run, the new screens' design goes in its own folder beside it,
   `design/<feature>/`, and the earlier package is left untouched. The brief asks the designer to
@@ -27,7 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   directions. The design checks now leave every design folder out of what they treat as app
   code: before, an earlier package's colour table failed a correct build and its wording passed
   missing text. The drafted checks name the right folder; they used to check the old package.
-
 - **The final audit reads the tests behind your success criteria.** A passing test only proves
   what it asserts, so for each success criterion the audit now checks that its tests use the
   same thresholds, exercise the situations the criterion names, actually run, and work out the
@@ -38,15 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The coverage line says what "re-verified" rested on**: how many success criteria had their
   tests inspected, and how many checks only confirmed a file exists. tunez read "100%
   re-verified" while 146 of its 323 checks were file-exists checks.
-
 - **The planner checks the design pictures against the typed wording.** The designer hands
   back screen pictures and a typed list of every piece of text, and the build was held only to
   the list. At the design step a subagent now compares each picture's visible text with the
   list and the planner asks you about every difference before the build starts.
-
 - **Relay offers to set up git.** In a folder that isn't a repository, the first planning
   question offers to create one and save the files already there as the starting point.
-  Secrets and generated folders are left out and added to `.gitignore`. Without git, relay
+  Secrets and generated folders are left out and added to `.gitignore`. Without git, Relay
   used to run on silently with no commits and weaker checks.
 - **Relay offers a remote when push is on and there is none** — a private GitHub repo through
   `gh` (never public), an existing one, adding it yourself, or push off. With several remotes
@@ -54,15 +53,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pushes; pre-flight warns when push is on and no remote has been added yet. Before, this was
   only found at the end of an unattended run.
 
+### Changed
+
+- **README: token usage is a table of measured runs**, from a 2-phase change to a CLI up to a
+  24-phase feature for a web app, each with its phases, checks, time and tokens processed —
+  examples, not a forecast.
+- **README: the install tip matches current Claude Code.** The `owner/repo` shorthand now falls
+  back to HTTPS when SSH isn't set up; the HTTPS URL stays the lead form. Pinning a release is
+  done with `#v<version>` on the marketplace URL.
+
 ### Fixed
 
 - **The docs say a run can go quiet.** After a while with nothing new, Claude Code pauses idle
   check-ins and only a finishing subagent wakes the run, so a hung subagent leaves it silent.
-  README and the orchestrator's manual now say so and what to do: send any message, and relay
+  README and the orchestrator's manual now say so and what to do: send any message, and Relay
   checks whether the step is still running.
 - **CI runs on current GitHub Actions releases** (`checkout` and `setup-node` v7, `setup-uv`
   10.2.0, all Node 24), clearing the Node 20 deprecation warning on every run.
-
 - **The tidy-up never makes a test check the code against itself.** It used to treat a test's
   own reference calculation as duplicate code and replace it with a call to the production
   function, so the test passed whatever the code did. Its rules now say that repetition is
@@ -74,13 +81,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Builders check a file's length before opening it.** Over 150 lines, they read the part they
   need. `tools/check-run.py` now warns on more than five whole-file reads in a window and on
   long command output that skipped the log. tunez's windows made up to 15 whole-file reads each.
-
 - **Each screen's wording is checked by the phase that builds it** (`check-design.sh --verify
   copy --screen <id>`), instead of one late phase inheriting every earlier screen's misses (58
   on tunez). Text found only in a code comment no longer counts — builders had satisfied the
   check with JSDoc lines — and `(e.g. …)` examples in the design's copy list are no longer
   required wording.
-
 - **Fewer, better edge-case prompts.** The planner's edge probe raised "unusual situation"
   prompts from generic words ("each", "state", "name") and from file names inside commands —
   136 prompts on tunez's 22 criteria, a third of them nonsense like "unusual characters" on a
@@ -99,7 +104,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   files or globs a phase creates (`validate-phase.sh --roadmap`), so the audit can check each
   one; tunez's plan pointed at the phase specs instead, and the audit rebuilt 146 paths from
   prose.
-
 - **The handoff no longer tells you to exit the planning session.** It says to start a new
   session in the same folder and paste the `/goal` line there; the planning session can stay
   open for reference or be closed.
@@ -163,15 +167,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `; exit 0`, a false pass. Pre-flight and the tidy-up / security gate now take only the
   command, and `validate-phase.sh` rejects such a bullet (the summary line belongs under
   `## Evidence required`). A phase command that is also an account check runs once.
-
 - `check-design.sh` no longer reports an existing screen heading as missing. With a large
   `## Screens` section, `grep -q` stopped reading at its first match, the section writer died of
   SIGPIPE, and `pipefail` turned the found heading into "no '### <id>' heading" — at random,
   including inside `--verify`, which the design-fidelity criteria run. Found by the tunez run.
 
-## [0.11.0] — 2026-10-07 (relay)
+## [0.11.0] — 2026-10-07 (Relay)
 
-**What relay adds over Supergoal 0.7.0.** Versions 0.8.0–0.11.0 were private pre-releases; this
+**What Relay adds over Supergoal 0.7.0.** Versions 0.8.0–0.11.0 were private pre-releases; this
 entry summarises them. Detailed per-version notes start with 1.0.0.
 
 ### Execution: one subagent per phase
@@ -217,26 +220,26 @@ entry summarises them. Detailed per-version notes start with 1.0.0.
 
 - **Per-phase correctness review, an end-of-run tidy-up and a security pass**, each in its own
   subagent. None can stop the run: what cannot be fixed goes to `FINDINGS.md`. A check may change
-  a call relay made in the plan (flagged `⚠ Plan changed:`), never one you made. `--lean` turns
+  a call Relay made in the plan (flagged `⚠ Plan changed:`), never one you made. `--lean` turns
   all three off.
 
 ### Git
 
 - **Every passing phase commits** through `scripts/relay-git.sh` (trailer-tagged, refusing secrets
   and generated files); a run that starts on the default branch moves to `relay/<run-id>`.
-- **Pushing is opt-in** (`--push` or `RELAY_PUSH=on`): once, after the audit, only a branch relay
+- **Pushing is opt-in** (`--push` or `RELAY_PUSH=on`): once, after the audit, only a branch Relay
   created, never forced. A failed push never stops a run.
 
 ### Changed
 
-- **Renamed to relay.** Plugin `relay`, skill `goal`, invoked as `/relay:goal` (was `/supergoal`);
+- **Renamed to Relay.** Plugin `relay`, skill `goal`, invoked as `/relay:goal` (was `/supergoal`);
   artifacts under `.relay/<run-id>/`, env vars `RELAY_*`, markers `RELAY_*`.
 - **Skill assets are located via `${CLAUDE_SKILL_DIR}`**, so marketplace installs find them; the
   memory directory is the one Claude Code keeps per git repository (`scripts/memory-dir.sh`).
 
 ### Removed
 
-- **Codex support** (relay depends on Claude Code subagents) and the **standalone skill install**
+- **Codex support** (Relay depends on Claude Code subagents) and the **standalone skill install**
   (a standalone `goal` skill would collide with the built-in `/goal`).
 
 ### Tooling

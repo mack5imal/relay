@@ -1,7 +1,7 @@
 {
   "name": "relay",
   "description": "Plan and autonomously build a software task end-to-end. A specification interview agrees what done means; then one ready-to-paste /goal command runs every phase in its own subagent with a fresh context window, reviews, tidies and security-checks the code, and closes with a final audit against the spec.",
-  "version": "0.11.0",
+  "version": "1.0.0",
   "author": {
     "name": "Kyle Mack"
   },

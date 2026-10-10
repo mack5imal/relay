@@ -133,7 +133,7 @@ No version bump needed. Just commit + push. Docs don't affect what install consu
 ### Conventions
 
 - **Names**: plugin `relay` (command namespace), skill `goal` (directory + frontmatter `name:`), invocation `/relay:goal`, artifact dir `.relay/`, env vars `RELAY_DIR` / `RELAY_BASE` / `RELAY_ROOT` (+ `RELAY_PUSH`, the user's push default), transcript markers `RELAY_*`. The plugin and skill names differ on purpose — a skill named `goal` is only safe inside the plugin namespace. Pre-fork CHANGELOG entries keep the `supergoal` names.
-- **Versioning**: SemVer, continuing upstream's line (first relay release is 0.8.0). Plugin manifest `version` field is the source of truth. README and CHANGELOG must match.
+- **Versioning**: SemVer, continuing upstream's line (first Relay release is 0.8.0). Plugin manifest `version` field is the source of truth. README and CHANGELOG must match.
 - **CHANGELOG**: every version gets an entry. Mention what changed, what's new, what's removed. Migration steps if breaking.
 - **Co-Authored-By trailers**: commits made by Claude carry a `Co-Authored-By` trailer. Upstream (pre-fork) history is never rewritten.
 - **Remotes**: `origin` is `github.com/mack5imal/relay`; `upstream` is Supergoal, fetch-only (push URL `DISABLED`).
@@ -149,7 +149,7 @@ No version bump needed. Just commit + push. Docs don't affect what install consu
 /reload-plugins
 ```
 
-The `owner/repo` shorthand (`/plugin marketplace add mack5imal/relay`) also works, but only if the user has GitHub SSH keys configured — the CLI defaults to SSH cloning for that shorthand.
+The `owner/repo` shorthand (`/plugin marketplace add mack5imal/relay`) also works: the CLI tries SSH first and falls back to HTTPS (`CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` skips the SSH attempt). The HTTPS URL stays the lead form because it never needs a key.
 
 ### For local development on this repo
 
@@ -218,10 +218,10 @@ Full format spec: `skills/goal/templates/MARKERS.md` (copied into every run root
 - **One run = one namespace; one working tree ≠ safe for two executions.** Run namespacing (`.relay/<run-id>/` via `claim-run.sh`) isolates *planning* artifacts so concurrent `/relay:goal` planning can't clobber. It does **not** make two `/goal` *executions* in the same working tree safe — they still edit the same source files. For real parallelism, each task needs its own `git worktree`. Don't "fix" the coexistence warning by implying parallel execution in one tree is safe.
 - **Mermaid renders natively in GitHub README** but not always in every external markdown viewer. Stick to standard Mermaid syntax (flowchart TD / LR, subgraphs, classDef styling).
 
-## Working state (as of v0.11.0 — 2026-10-07)
+## Working state (as of v1.0.0 — 2026-10-10)
 
-Pre-1.0. Versions 0.8.0–0.11.0 were private pre-releases, summarised in `CHANGELOG.md`; 1.0.0 is the
-first public release. Everything in the layout above is built and covered by the fixture suites,
+1.0.0 is the first public release; 0.8.0–0.11.0 were private pre-releases, summarised in
+`CHANGELOG.md`. Everything in the layout above is built and covered by the fixture suites,
 which `tests/run-all.sh` runs on macOS (bash 3.2) and Linux (bash 5) on every push.
 
 ## Open work
@@ -251,4 +251,4 @@ which `tests/run-all.sh` runs on macOS (bash 3.2) and Linux (bash 5) on every pu
 - Repo: https://github.com/mack5imal/relay
 - Upstream: https://github.com/robzilla1738/supergoal (fork point v0.7.0, `ec2f6eb`)
 - License: MIT
-- Authors: Robert Courson (Supergoal), Kyle Mack (relay)
+- Authors: Robert Courson (Supergoal), Kyle Mack (Relay)
